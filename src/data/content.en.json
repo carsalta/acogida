@@ -1,0 +1,62 @@
+{
+  "title": "Safety Instruction",
+  "visitBadge": "Visitors",
+  "visitTitle": "I am a VISITOR (6 min)",
+  "visitDesc": "Essential safety briefing before arrival.",
+  "visitBtn": "Start as VISITOR",
+  "contractorBadge": "Contractors",
+  "contractorTitle": "I am a CONTRACTOR (15 min)",
+  "contractorDesc": "Mandatory induction for external personnel.",
+  "contractorBtn": "Start as CONTRACTOR",
+  "fields": {
+    "name": "Full name",
+    "id": "ID/Passport",
+    "company": "Company",
+    "email": "Email"
+  },
+  "startVideo": "Start video",
+  "videoTitle": {
+    "visita": "Video for Visitors",
+    "contrata": "Video for Contractors"
+  },
+  "mustWatch": "You must watch the full video to continue.",
+  "quizTitle": "Quiz",
+  "checkBtn": "Check and finish",
+  "wrong": "Wrong answer. Please correct.",
+  "done": "Done! Certificate generated and downloaded.",
+  "verifyHint": "Scan the PDF QR to verify status.",
+  "newStart": "New attempt",
+  "finish": "Finish",
+  "finishAndRetry": "Finish & New attempt",
+  "verifyPage": {
+    "checking": "Checking…",
+    "valid": "✓ Certificate valid",
+    "expired": "⚠ Certificate expired",
+    "notfound": "✖ Not found"
+  },
+  "questions": {
+    "visita": [
+      {
+        "id": "v1",
+        "text": "Where do people meet in case of evacuation?",
+        "options": [
+          "Marked assembly point",
+          "Cafeteria",
+          "Truck gate"
+        ],
+        "correct": 0
+      }
+    ],
+    "contrata": [
+      {
+        "id": "c01",
+        "text": "In case the evacuation alarm rings you should go to…",
+        "options": [
+          "The meeting point",
+          "The exterior of the factory, in a place with no risks"
+        ],
+        "correct": 1
+      }
+    ]
+  }
+}

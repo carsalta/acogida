@@ -1,0 +1,62 @@
+{
+  "title": "Video Acogida",
+  "visitBadge": "Visitas",
+  "visitTitle": "Soy VISITA (6 min)",
+  "visitDesc": "Recorrido esencial de seguridad antes de tu llegada.",
+  "visitBtn": "Empezar como VISITA",
+  "contractorBadge": "Contratas",
+  "contractorTitle": "Soy CONTRATA (15 min)",
+  "contractorDesc": "Introducción obligatoria para personal externo.",
+  "contractorBtn": "Empezar como CONTRATA",
+  "fields": {
+    "name": "Nombre y apellidos",
+    "id": "DNI/NIE/Pasaporte",
+    "company": "Empresa",
+    "email": "Email"
+  },
+  "startVideo": "Iniciar vídeo",
+  "videoTitle": {
+    "visita": "Vídeo para Visitas",
+    "contrata": "Vídeo para Contratas"
+  },
+  "mustWatch": "Debes ver el vídeo completo para continuar.",
+  "quizTitle": "Cuestionario",
+  "checkBtn": "Comprobar y finalizar",
+  "wrong": "Respuesta incorrecta. Revisa y corrige.",
+  "done": "¡Listo! Certificado generado y descargado.",
+  "verifyHint": "Escanea el QR del PDF para verificar el estado.",
+  "newStart": "Nuevo intento",
+  "finish": "Finalizar",
+  "finishAndRetry": "Finalizar y nuevo intento",
+  "verifyPage": {
+    "checking": "Comprobando…",
+    "valid": "✓ Certificado válido",
+    "expired": "⚠ Certificado caducado",
+    "notfound": "✖ No encontrado"
+  },
+  "questions": {
+    "visita": [
+      {
+        "id": "v1",
+        "text": "¿Dónde se reúne el personal en caso de evacuación?",
+        "options": [
+          "Punto de encuentro señalizado",
+          "Cafetería",
+          "Entrada de camiones"
+        ],
+        "correct": 0
+      }
+    ],
+    "contrata": [
+      {
+        "id": "c01",
+        "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
+        "options": [
+          "Al punto de reunión.",
+          "Al exterior de la planta, en un lugar sin riesgo"
+        ],
+        "correct": 1
+      }
+    ]
+  }
+}
