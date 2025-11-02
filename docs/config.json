@@ -1,0 +1,56 @@
+{
+  "defaultLang": "es",
+  "enabledLangs": [
+    "es",
+    "en"
+  ],
+  "allowSeek": false,
+  "allowSubtitles": true,
+  "adminCode": "admin123",
+  "brand": {
+    "name": "Mi Organización",
+    "primary": "#0ea5e9",
+    "logo": "brand/logo-global.png"
+  },
+  "mail": {
+    "enabled": false,
+    "apiBase": "",
+    "apiKey": "",
+    "cc": []
+  },
+  "videos": {
+    "visita": {
+      "es": "videos/es/visita.mp4",
+      "en": "videos/en/visita.mp4",
+      "fr": "videos/fr/visita.mp4",
+      "de": "videos/de/visita.mp4",
+      "pt": "videos/pt/visita.mp4",
+      "minutes": 6
+    },
+    "contrata": {
+      "es": "videos/es/contrata.mp4",
+      "en": "videos/en/contrata.mp4",
+      "fr": "videos/fr/contrata.mp4",
+      "de": "videos/de/contrata.mp4",
+      "pt": "videos/pt/contrata.mp4",
+      "minutes": 15
+    }
+  },
+  "sites": {
+    "Aldaya": {
+      "brand": {
+        "name": "Aldaya",
+        "primary": "#0ea5e9",
+        "logo": "brand/logo-esda242.png"
+      },
+      "videos": {
+        "visita": {
+          "es": "videos/es/visita.mp4"
+        },
+        "contrata": {
+          "es": "videos/es/contrata.mp4"
+        }
+      }
+    }
+  }
+}
