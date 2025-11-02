@@ -44,8 +44,6 @@ export default function VideoGate({
     const isYouTube = !!youTubeId;
 
     // ====================== Rama YouTube ======================================
-    const ytWrapRef = useRef(null);     // wrapper externo (para medir top)
-    const ytBoxRef = useRef(null);     // caja 16:9 (a la que limitamos altura)
     const ytPlayerRef = useRef(null);
     const [ytEnded, setYtEnded] = useState(false);
 
@@ -57,7 +55,6 @@ export default function VideoGate({
 
     useEffect(() => { setYtEnded(false); }, [youTubeId]);
 
-    // Crear/destruir el player YT
     useEffect(() => {
         if (!isYouTube) return;
 
@@ -97,50 +94,20 @@ export default function VideoGate({
         };
     }, [isYouTube, youTubeId, playerDomId, allowSeek, onDone, src]);
 
-    // Limitar altura del contenedor 16:9 como hacías con <video>
-    useEffect(() => {
-        if (!isYouTube) return;
-        const wrap = ytWrapRef.current;
-        const box = ytBoxRef.current;
-        if (!wrap || !box) return;
-
-        const compute = () => {
-            const rect = wrap.getBoundingClientRect();
-            const viewport = window.innerHeight || document.documentElement.clientHeight;
-            const margin = 24; // igual que en tu versión original
-            const maxH = Math.max(240, viewport - rect.top - margin);
-            box.style.maxHeight = maxH + 'px';
-            box.style.width = '100%';
-        };
-
-        compute();
-        const ro = new ResizeObserver(compute);
-        ro.observe(document.body);
-        window.addEventListener('resize', compute);
-        return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
-    }, [isYouTube]);
-
     if (isYouTube) {
         return (
-            <div ref={ytWrapRef} style={{ display: 'grid', gap: 12 }}>
-                {/* Caja responsiva 16:9 */}
-                <div
-                    ref={ytBoxRef}
-                    style={{
-                        position: 'relative',
-                        width: '100%',
-                        paddingTop: '56.25%', // 16:9
-                        borderRadius: 8,
-                        overflow: 'hidden',
-                        background: '#000'
-                    }}
-                >
-                    {/* La IFrame API de YouTube creará aquí el <iframe> y gracias al estilo de abajo llenará la caja */}
-                    <div
-                        id={playerDomId}
-                        aria-label="YouTube player"
-                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
-                    />
+            <div style={{ display: 'grid', gap: 12 }}>
+                {/* Limita ancho y centra */}
+                <div className="video-shell">
+                    {/* Caja 16:9, altura limitada por CSS */}
+                    <div className="iframe-box">
+                        {/* La IFrame API insertará aquí el <iframe> ocupando todo */}
+                        <div
+                            id={playerDomId}
+                            aria-label="YouTube player"
+                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                        />
+                    </div>
                 </div>
 
                 {!ytEnded && (
@@ -179,6 +146,7 @@ export default function VideoGate({
         v.addEventListener('timeupdate', onTime);
         v.addEventListener('seeking', onSeek);
         v.addEventListener('ended', onEnded);
+
         return () => {
             v.removeEventListener('timeupdate', onTime);
             v.removeEventListener('seeking', onSeek);
@@ -186,47 +154,40 @@ export default function VideoGate({
         };
     }, [allowSeek, watched, onDone, src]);
 
-    // Ajuste de altura como en tu versión original
-    useEffect(() => {
-        const el = wrapRef.current; const v = vidRef.current;
-        if (!el || !v) return;
-        const compute = () => {
-            const rect = el.getBoundingClientRect();
-            const viewport = window.innerHeight || document.documentElement.clientHeight;
-            const margin = 24;
-            const maxH = Math.max(240, viewport - rect.top - margin);
-            v.style.maxHeight = maxH + 'px';
-            v.style.width = '100%';
-        };
-        compute();
-        const ro = new ResizeObserver(compute);
-        ro.observe(document.body);
-        window.addEventListener('resize', compute);
-        return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
-    }, []);
-
     // Resolver rutas relativas con BASE_URL (igual que tu lógica)
     const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
         ? src
-        : (src.startsWith('/') ? (import.meta.env.BASE_URL + src.replace(/^\//, ''))
+        : (src.startsWith('/')
+            ? (import.meta.env.BASE_URL + src.replace(/^\//, ''))
             : (import.meta.env.BASE_URL + src)));
 
     return (
         <div ref={wrapRef} style={{ display: 'grid', gap: 12 }}>
-            <video
-                ref={vidRef}
-                src={resolvedSrc}
-                controls
-                className="video-responsive"
-                style={{ borderRadius: 8, background: '#000' }}
-                controlsList={allowSeek ? 'nodownload' : 'nodownload noplaybackrate'}
-                preload="metadata"
-                playsInline
-            >
-                {allowSubtitles && tracks.map((t) => (
-                    <track key={t.src} kind="subtitles" src={t.src} srcLang={t.srclang} label={t.label} default={t.default || false} />
-                ))}
-            </video>
+            {/* Limita ancho y centra */}
+            <div className="video-shell">
+                <video
+                    ref={vidRef}
+                    src={resolvedSrc}
+                    controls
+                    className="video-responsive"
+                    style={{ borderRadius: 8, background: '#000' }}
+                    controlsList={allowSeek ? 'nodownload' : 'nodownload noplaybackrate'}
+                    preload="metadata"
+                    playsInline
+                >
+                    {allowSubtitles && (tracks || []).map((t) => (
+                        <track
+                            key={t.src}
+                            kind="subtitles"
+                            src={t.src}
+                            srcLang={t.srclang}
+                            label={t.label}
+                            default={t.default || false}
+                        />
+                    ))}
+                </video>
+            </div>
+
             {!ended && (
                 <p style={{ fontSize: 14, color: '#475569' }}>
                     Reproduce el vídeo completo para continuar.
