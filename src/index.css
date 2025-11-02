@@ -41,13 +41,13 @@ body.kiosk{overflow:hidden}
 /* ===== Limitar el ancho visual del reproductor y centrarlo ===== */
 :root {
     /* cambia este valor para hacerlo más pequeño o grande */
-    --video-max-width: 960px; /* p.ej. 800px, 900px, 1100px */
+    --video-max-width: 1200px; /* p.ej. 800px, 900px, 1100px */
 }
 
 /* Contenedor de tamaño del player (aplica a YouTube y MP4) */
 .video-shell {
     /* En móvil ocupa casi todo (80vw); en escritorio no pasa de --video-max-width */
-    width: clamp(320px, 80vw, var(--video-max-width));
+    width: clamp(360px, 90vw, var(--video-max-width));
     margin: 0 auto; /* centra */
 }
 
