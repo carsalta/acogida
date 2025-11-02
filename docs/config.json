@@ -6,9 +6,9 @@
   ],
   "allowSeek": false,
   "allowSubtitles": true,
-  "adminCode": "admin123",
+  "adminCode": "Secur_2025?",
   "brand": {
-    "name": "Mi Organización",
+    "name": "Danone",
     "primary": "#0ea5e9",
     "logo": "brand/logo-global.png"
   },
@@ -20,20 +20,20 @@
   },
   "videos": {
     "visita": {
-      "es": "videos/es/visita.mp4",
-      "en": "videos/en/visita.mp4",
-      "fr": "videos/fr/visita.mp4",
-      "de": "videos/de/visita.mp4",
-      "pt": "videos/pt/visita.mp4",
-      "minutes": 6
+        "es": "https://www.youtube.com/embed/LUti0D4melI",
+        "en": "https://www.youtube.com/embed/sq4RpiFyxfI",
+        "fr": "videos/fr/visita.mp4",
+        "de": "videos/de/visita.mp4",
+        "pt": "videos/pt/visita.mp4",
+        "minutes": 6
     },
     "contrata": {
-      "es": "https://www.youtube.com/embed/SlbANB1e6W4",
-      "en": "videos/en/contrata.mp4",
-      "fr": "videos/fr/contrata.mp4",
-      "de": "videos/de/contrata.mp4",
-      "pt": "videos/pt/contrata.mp4",
-      "minutes": 15
+        "es": "https://www.youtube.com/embed/SlbANB1e6W4",
+        "en": "https://www.youtube.com/embed/5c0lHewLp3g",
+        "fr": "videos/fr/contrata.mp4",
+        "de": "videos/de/contrata.mp4",
+        "pt": "videos/pt/contrata.mp4",
+        "minutes": 15
     }
   },
   "sites": {
@@ -45,10 +45,12 @@
       },
       "videos": {
         "visita": {
-          "es": "videos/es/visita.mp4"
+            "es": "https://www.youtube.com/embed/LUti0D4melI",
+            "en": "https://www.youtube.com/embed/sq4RpiFyxfI"
         },
         "contrata": {
-          "es": "videos/es/contrata.mp4"
+            "es": "https://www.youtube.com/embed/SlbANB1e6W4",
+            "en": "https://www.youtube.com/embed/5c0lHewLp3g"
         }
       }
     }
