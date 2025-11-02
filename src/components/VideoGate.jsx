@@ -70,17 +70,13 @@ export default function VideoGate({
             ytPlayerRef.current = new YT.Player(playerDomId, {
                 videoId: youTubeId,
                 playerVars: {
-                    controls: 0,          // sin UI de YouTube
+                    controls: allowSeek ? 1 : 0,         // habilita barra si permites seek
                     modestbranding: 1,
                     rel: 0,
-                    disablekb: 1,
+                    disablekb: allowSeek ? 0 : 1,     // si no hay seek, desactiva atajos
                     fs: 1,
                     playsinline: 1,
                     iv_load_policy: 3,
-                    // Sugerimos idioma/captions
-                    hl: uiLang,
-                    cc_lang_pref: uiLang,
-                    cc_load_policy: allowSubtitles ? 1 : 0,
                     origin: window.location.origin,
                 },
                 events: {
@@ -138,20 +134,22 @@ export default function VideoGate({
                 {/* Tamaño limitado y centrado */}
                 <div className="video-shell">
                     {/* Caja 16:9 */}
-                    <div ref={ytBoxRef} className="iframe-box" style={{ position: 'relative' }}>
+                    <div className="iframe-box" style={{ position: 'relative' }}>
+                        {/* 1) Aquí la IFrame API inyecta el <iframe> y ocupa todo */}
                         <div
                             id={playerDomId}
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
 
-                        {/* Overlay inicial para reproducir (evita clicar en el iframe) */}
+                        {/* 2) Overlay de Play (solo cuando NO está reproduciendo) */}
                         {!ytPlaying && (
                             <div
                                 style={{
                                     position: 'absolute', inset: 0,
                                     display: 'grid', placeItems: 'center',
-                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.15))'
+                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.15))',
+                                    zIndex: 2
                                 }}
                             >
                                 <button
@@ -166,12 +164,20 @@ export default function VideoGate({
                             </div>
                         )}
 
-                        {/* Escudo anti-clics durante la reproducción */}
-                        {ytPlaying && (
-                            <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }} />
+                        {/* 3) 👇 ESCUDO ANTICLICS: va DENTRO de .iframe-box y por ENCIMA del iframe */}
+                        {ytPlaying && !allowSeek && (
+                            <div
+                                aria-hidden
+                                style={{
+                                    position: 'absolute',
+                                    inset: 0,
+                                    zIndex: 3,
+                                    pointerEvents: 'auto',   // captura clics para que NO lleguen al iframe
+                                    background: 'transparent'
+                                }}
+                            />
                         )}
                     </div>
-
                     {/* ----------------- Controles propios ----------------- */}
                     <div className="video-controls" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 8 }}>
                         <button className="btn btn-outline" onClick={ytToggle}>
