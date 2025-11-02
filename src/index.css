@@ -14,7 +14,7 @@ body.kiosk{overflow:hidden}
 .iframe-box {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 9;                /* Mantiene 16:9 automáticamente */
+  aspect-ratio: 16 / 9;                /* Mantiene 16:9 automÃ¡ticamente */
   max-height: calc(100vh - 220px);     /* Igual criterio que .video-responsive */
   background: #000;
   border-radius: 8px;
@@ -40,18 +40,18 @@ body.kiosk{overflow:hidden}
 
 /* ===== Limitar el ancho visual del reproductor y centrarlo ===== */
 :root {
-    /* cambia este valor para hacerlo más pequeño o grande */
-    --video-max-width: 1200px; /* p.ej. 800px, 900px, 1100px */
+    /* cambia este valor para hacerlo mÃ¡s pequeÃ±o o grande */
+    --video-max-width: 1600px; /* p.ej. 800px, 900px, 1100px */
 }
 
-/* Contenedor de tamaño del player (aplica a YouTube y MP4) */
+/* Contenedor de tamaÃ±o del player (aplica a YouTube y MP4) */
 .video-shell {
-    /* En móvil ocupa casi todo (80vw); en escritorio no pasa de --video-max-width */
+    /* En mÃ³vil ocupa casi todo (80vw); en escritorio no pasa de --video-max-width */
     width: clamp(360px, 90vw, var(--video-max-width));
     margin: 0 auto; /* centra */
 }
 
-/* Mantén tus clases existentes de vídeo/iframe */
+/* MantÃ©n tus clases existentes de vÃ­deo/iframe */
 .video-responsive {
     width: 100%;
     height: auto;
