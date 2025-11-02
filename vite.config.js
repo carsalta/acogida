@@ -1,9 +1,13 @@
+// vite.config.js (versión que ignora configs externas)
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
 
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
-
-// ⚠️ Cambia '/TU_REPO/' por el nombre EXACTO de tu repo con barras.
 export default defineConfig({
-  plugins: [react()],
-  base: '/TU_REPO/',
-});
+    plugins: [react()],
+    base: '/acogida/',
+    css: {
+        postcss: {
+            plugins: []   // 👈 no cargará configs globales
+        }
+    }
+})
