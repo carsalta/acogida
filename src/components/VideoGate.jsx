@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics';
 
-// --- Detectar YouTube -------------------------------------------------------
+// ------------------------- Helpers YouTube -------------------------
 function getYouTubeId(url = '') {
     if (!url) return null;
     const u = String(url);
@@ -15,7 +15,7 @@ function getYouTubeId(url = '') {
     return null;
 }
 
-// Cargar IFrame API una sola vez
+// Carga única de la IFrame API
 let ytReadyPromise = null;
 function ensureYouTubeAPI() {
     if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -30,6 +30,7 @@ function ensureYouTubeAPI() {
     return ytReadyPromise;
 }
 
+// --------------------------- Componente ----------------------------
 export default function VideoGate({
     src,
     tracks = [],
@@ -37,17 +38,19 @@ export default function VideoGate({
     allowSubtitles = true,
     onDone,
 }) {
+    // log start
     useEffect(() => { if (src) logEvent('video_start', { src }); }, [src]);
 
     const youTubeId = getYouTubeId(src);
     const isYouTube = !!youTubeId;
 
-    // ====================== Rama YouTube ======================================
+    // ====================== Rama YouTube ======================
     const ytPlayerRef = useRef(null);
     const [ytReady, setYtReady] = useState(false);
     const [ytPlaying, setYtPlaying] = useState(false);
     const [ytEnded, setYtEnded] = useState(false);
 
+    // ID estable para contenedor donde la API inyecta el iframe
     const playerDomId = useMemo(
         () => 'yt-' + Math.random().toString(36).slice(2),
         [youTubeId]
@@ -63,14 +66,14 @@ export default function VideoGate({
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
 
+            // Sin controles, branding mínimo, sin atajos teclado
             ytPlayerRef.current = new YT.Player(playerDomId, {
                 videoId: youTubeId,
                 playerVars: {
-                    // 👇 configuración para minimizar marca y quitar controles/clicks a YouTube
-                    controls: 0,           // sin controles (ponemos los nuestros)
-                    modestbranding: 1,     // marca mínima
-                    rel: 0,                // relacionados del mismo canal
-                    disablekb: 1,          // sin atajos teclado
+                    controls: 0,          // sin barra de controles de YouTube
+                    modestbranding: 1,    // reduce la marca
+                    rel: 0,               // relacionados del mismo canal
+                    disablekb: 1,         // sin atajos de teclado
                     fs: 1,
                     playsinline: 1,
                     iv_load_policy: 3,
@@ -80,8 +83,8 @@ export default function VideoGate({
                     onReady: () => setYtReady(true),
                     onStateChange: (e) => {
                         const S = window.YT.PlayerState;
-                        if (e.data === S.PLAYING) { setYtPlaying(true); }
-                        if (e.data === S.PAUSED) { setYtPlaying(false); }
+                        if (e.data === S.PLAYING) setYtPlaying(true);
+                        if (e.data === S.PAUSED) setYtPlaying(false);
                         if (e.data === S.ENDED) {
                             setYtPlaying(false);
                             setYtEnded(true);
@@ -106,21 +109,23 @@ export default function VideoGate({
     if (isYouTube) {
         return (
             <div style={{ display: 'grid', gap: 12 }}>
-                {/* Contenedor con ancho limitado y centrado */}
+                {/* Limita ancho y centra */}
                 <div className="video-shell">
                     {/* Caja 16:9 con altura limitada por CSS */}
                     <div className="iframe-box" style={{ position: 'relative' }}>
+                        {/* El iframe real se inyecta aquí y ocupa todo el contenedor */}
                         <div
                             id={playerDomId}
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
 
-                        {/* Overlay propio: evita tener que clicar elementos de YouTube */}
-                        {(!ytPlaying) && (
+                        {/* Overlay de Play propio para evitar interacción con UI de YouTube */}
+                        {!ytPlaying && (
                             <div
                                 style={{
-                                    position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                                    position: 'absolute', inset: 0,
+                                    display: 'grid', placeItems: 'center',
                                     background: 'linear-gradient(transparent, rgba(0,0,0,0.15))'
                                 }}
                             >
@@ -131,7 +136,7 @@ export default function VideoGate({
                                         appearance: 'none',
                                         padding: '12px 20px',
                                         borderRadius: 999,
-                                        border: '0',
+                                        border: 0,
                                         fontWeight: 700,
                                         color: '#fff',
                                         background: 'var(--brand, #0ea5e9)',
@@ -143,6 +148,19 @@ export default function VideoGate({
                                     ▶ Reproducir
                                 </button>
                             </div>
+                        )}
+
+                        {/* Escudo de clics transparente mientras reproduce:
+                evita que cualquier clic abra YouTube o pause el vídeo. */}
+                        {ytPlaying && (
+                            <div
+                                aria-hidden
+                                style={{
+                                    position: 'absolute', inset: 0,
+                                    // captura eventos para que no se pueda clicar el logo
+                                    pointerEvents: 'auto'
+                                }}
+                            />
                         )}
                     </div>
                 </div>
@@ -156,7 +174,7 @@ export default function VideoGate({
         );
     }
 
-    // ====================== Rama MP4 (HTML5 <video>) ==========================
+    // ====================== Rama MP4 (HTML5 <video>) ======================
     const wrapRef = useRef(null);
     const vidRef = useRef(null);
     const [watched, setWatched] = useState(0);
@@ -183,7 +201,6 @@ export default function VideoGate({
         v.addEventListener('timeupdate', onTime);
         v.addEventListener('seeking', onSeek);
         v.addEventListener('ended', onEnded);
-
         return () => {
             v.removeEventListener('timeupdate', onTime);
             v.removeEventListener('seeking', onSeek);
@@ -191,7 +208,7 @@ export default function VideoGate({
         };
     }, [allowSeek, watched, onDone, src]);
 
-    // Ajuste de altura (como tu versión original)
+    // Ajuste de altura como tu versión original
     useEffect(() => {
         const el = wrapRef.current; const v = vidRef.current;
         if (!el || !v) return;
@@ -210,6 +227,7 @@ export default function VideoGate({
         return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
     }, []);
 
+    // Resolver rutas relativas con BASE_URL
     const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
         ? src
         : (src.startsWith('/')
