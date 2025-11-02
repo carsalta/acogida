@@ -12,3 +12,6 @@ Thumbs.db
 # Env
 .env
 .env.*
+
+postcss.config.js
+tailwind.config.js
