@@ -1,0 +1,14 @@
+# Node / Vite
+node_modules/
+dist/
+.cache/
+.vite/
+*.log
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
