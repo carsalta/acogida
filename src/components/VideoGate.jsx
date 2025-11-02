@@ -43,12 +43,13 @@ export default function VideoGate({
     const youTubeId = getYouTubeId(src);
     const isYouTube = !!youTubeId;
 
-    // --- Rama YouTube ---------------------------------------------------------
-    const ytWrapRef = useRef(null);
+    // ====================== Rama YouTube ======================================
+    const ytWrapRef = useRef(null);     // wrapper externo (para medir top)
+    const ytBoxRef = useRef(null);     // caja 16:9 (a la que limitamos altura)
     const ytPlayerRef = useRef(null);
     const [ytEnded, setYtEnded] = useState(false);
 
-    // ID estable para el contenedor del player
+    // ID estable para el contenedor del player (donde la API inyecta el iframe)
     const playerDomId = useMemo(
         () => 'yt-' + Math.random().toString(36).slice(2),
         [youTubeId]
@@ -56,6 +57,7 @@ export default function VideoGate({
 
     useEffect(() => { setYtEnded(false); }, [youTubeId]);
 
+    // Crear/destruir el player YT
     useEffect(() => {
         if (!isYouTube) return;
 
@@ -64,6 +66,7 @@ export default function VideoGate({
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
 
+            // Si no permites seek, ocultamos controles para reducir saltos
             const controls = allowSeek ? 1 : 0;
 
             ytPlayerRef.current = new YT.Player(playerDomId, {
@@ -94,20 +97,52 @@ export default function VideoGate({
         };
     }, [isYouTube, youTubeId, playerDomId, allowSeek, onDone, src]);
 
+    // Limitar altura del contenedor 16:9 como hacías con <video>
+    useEffect(() => {
+        if (!isYouTube) return;
+        const wrap = ytWrapRef.current;
+        const box = ytBoxRef.current;
+        if (!wrap || !box) return;
+
+        const compute = () => {
+            const rect = wrap.getBoundingClientRect();
+            const viewport = window.innerHeight || document.documentElement.clientHeight;
+            const margin = 24; // igual que en tu versión original
+            const maxH = Math.max(240, viewport - rect.top - margin);
+            box.style.maxHeight = maxH + 'px';
+            box.style.width = '100%';
+        };
+
+        compute();
+        const ro = new ResizeObserver(compute);
+        ro.observe(document.body);
+        window.addEventListener('resize', compute);
+        return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
+    }, [isYouTube]);
+
     if (isYouTube) {
         return (
             <div ref={ytWrapRef} style={{ display: 'grid', gap: 12 }}>
-                {/* Contenedor responsivo 16:9 */}
-                <div style={{
-                    position: 'relative',
-                    width: '100%',
-                    paddingTop: '56.25%',
-                    borderRadius: 8,
-                    overflow: 'hidden',
-                    background: '#000'
-                }}>
-                    <div id={playerDomId} style={{ position: 'absolute', inset: 0 }} aria-label="YouTube player" />
+                {/* Caja responsiva 16:9 */}
+                <div
+                    ref={ytBoxRef}
+                    style={{
+                        position: 'relative',
+                        width: '100%',
+                        paddingTop: '56.25%', // 16:9
+                        borderRadius: 8,
+                        overflow: 'hidden',
+                        background: '#000'
+                    }}
+                >
+                    {/* La IFrame API de YouTube creará aquí el <iframe> y gracias al estilo de abajo llenará la caja */}
+                    <div
+                        id={playerDomId}
+                        aria-label="YouTube player"
+                        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                    />
                 </div>
+
                 {!ytEnded && (
                     <p style={{ fontSize: 14, color: '#475569' }}>
                         Reproduce el vídeo completo para continuar.
@@ -117,7 +152,7 @@ export default function VideoGate({
         );
     }
 
-    // --- Rama MP4 (HTML5 <video>) --------------------------------------------
+    // ====================== Rama MP4 (HTML5 <video>) ==========================
     const wrapRef = useRef(null);
     const vidRef = useRef(null);
     const [watched, setWatched] = useState(0);
@@ -144,7 +179,6 @@ export default function VideoGate({
         v.addEventListener('timeupdate', onTime);
         v.addEventListener('seeking', onSeek);
         v.addEventListener('ended', onEnded);
-
         return () => {
             v.removeEventListener('timeupdate', onTime);
             v.removeEventListener('seeking', onSeek);
