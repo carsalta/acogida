@@ -9,3 +9,30 @@ body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantare
 .video-responsive{width:100%;height:auto;max-height:calc(100vh - 220px)}
 @media (max-width:768px){.video-responsive{max-height:calc(100vh - 180px)}}
 body.kiosk{overflow:hidden}
+/* ===== Iframe (YouTube/Vimeo) responsivo ===== */
+.iframe-box {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 16 / 9; /* Mantiene 16:9 automáticamente */
+    max-height: calc(100vh - 220px); /* Igual criterio que .video-responsive */
+    background: #000;
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+    /* El iframe (o el DIV donde la API de YT inserta el iframe) ocupa todo */
+    .iframe-box > iframe,
+    .iframe-box > div {
+        position: absolute;
+        inset: 0; /* top/right/bottom/left = 0 */
+        width: 100%;
+        height: 100%;
+        border: 0;
+        display: block;
+    }
+
+@media (max-width: 768px) {
+    .iframe-box {
+        max-height: calc(100vh - 180px);
+    }
+}
