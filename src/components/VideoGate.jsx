@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics';
 
-// ------------------------- Helpers YouTube -------------------------
+// ---------- Helpers YouTube ----------
 function getYouTubeId(url = '') {
     if (!url) return null;
     const u = String(url);
@@ -15,7 +15,6 @@ function getYouTubeId(url = '') {
     return null;
 }
 
-// Carga única de la IFrame API
 let ytReadyPromise = null;
 function ensureYouTubeAPI() {
     if (window.YT?.Player) return Promise.resolve(window.YT);
@@ -30,7 +29,7 @@ function ensureYouTubeAPI() {
     return ytReadyPromise;
 }
 
-// --------------------------- Componente ----------------------------
+// ---------- Componente ----------
 export default function VideoGate({
     src,
     tracks = [],
@@ -38,19 +37,21 @@ export default function VideoGate({
     allowSubtitles = true,
     onDone,
 }) {
-    // log start
     useEffect(() => { if (src) logEvent('video_start', { src }); }, [src]);
 
     const youTubeId = getYouTubeId(src);
     const isYouTube = !!youTubeId;
 
-    // ====================== Rama YouTube ======================
+    // ===================== YOUTUBE =====================
     const ytPlayerRef = useRef(null);
+    const ytBoxRef = useRef(null);
     const [ytReady, setYtReady] = useState(false);
     const [ytPlaying, setYtPlaying] = useState(false);
     const [ytEnded, setYtEnded] = useState(false);
+    const [ytCaptions, setYtCaptions] = useState(!!allowSubtitles);
 
-    // ID estable para contenedor donde la API inyecta el iframe
+    const uiLang = (navigator.language || 'es').slice(0, 2);
+
     const playerDomId = useMemo(
         () => 'yt-' + Math.random().toString(36).slice(2),
         [youTubeId]
@@ -66,17 +67,20 @@ export default function VideoGate({
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
 
-            // Sin controles, branding mínimo, sin atajos teclado
             ytPlayerRef.current = new YT.Player(playerDomId, {
                 videoId: youTubeId,
                 playerVars: {
-                    controls: 0,          // sin barra de controles de YouTube
-                    modestbranding: 1,    // reduce la marca
-                    rel: 0,               // relacionados del mismo canal
-                    disablekb: 1,         // sin atajos de teclado
+                    controls: 0,          // sin UI de YouTube
+                    modestbranding: 1,
+                    rel: 0,
+                    disablekb: 1,
                     fs: 1,
                     playsinline: 1,
                     iv_load_policy: 3,
+                    // Sugerimos idioma/captions
+                    hl: uiLang,
+                    cc_lang_pref: uiLang,
+                    cc_load_policy: allowSubtitles ? 1 : 0,
                     origin: window.location.origin,
                 },
                 events: {
@@ -100,27 +104,48 @@ export default function VideoGate({
             disposed = true;
             try { ytPlayerRef.current?.destroy?.(); } catch { }
         };
-    }, [isYouTube, youTubeId, playerDomId, onDone, src]);
+    }, [isYouTube, youTubeId, playerDomId, allowSubtitles, uiLang, onDone, src]);
 
-    const handlePlay = () => {
-        try { ytPlayerRef.current?.playVideo(); } catch { }
+    const ytPlay = () => { try { ytPlayerRef.current?.playVideo(); } catch { } };
+    const ytPause = () => { try { ytPlayerRef.current?.pauseVideo(); } catch { } };
+    const ytToggle = () => (ytPlaying ? ytPause() : ytPlay());
+
+    const ytToggleCaptions = () => {
+        // Intentamos activar/desactivar captions vía API (si hay pista en el vídeo)
+        try {
+            const on = !ytCaptions;
+            setYtCaptions(on);
+            if (on) {
+                ytPlayerRef.current?.setOption('captions', 'track', { languageCode: uiLang });
+                ytPlayerRef.current?.setOption('captions', 'reload', true);
+            } else {
+                ytPlayerRef.current?.setOption('captions', 'track', {}); // mejor esfuerzo para ocultarlas
+                ytPlayerRef.current?.setOption('captions', 'reload', true);
+            }
+        } catch { }
+    };
+
+    const ytFullscreen = () => {
+        const el = ytBoxRef.current;
+        if (!el) return;
+        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
+        rfs?.call(el);
     };
 
     if (isYouTube) {
         return (
             <div style={{ display: 'grid', gap: 12 }}>
-                {/* Limita ancho y centra */}
+                {/* Tamaño limitado y centrado */}
                 <div className="video-shell">
-                    {/* Caja 16:9 con altura limitada por CSS */}
-                    <div className="iframe-box" style={{ position: 'relative' }}>
-                        {/* El iframe real se inyecta aquí y ocupa todo el contenedor */}
+                    {/* Caja 16:9 */}
+                    <div ref={ytBoxRef} className="iframe-box" style={{ position: 'relative' }}>
                         <div
                             id={playerDomId}
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
 
-                        {/* Overlay de Play propio para evitar interacción con UI de YouTube */}
+                        {/* Overlay inicial para reproducir (evita clicar en el iframe) */}
                         {!ytPlaying && (
                             <div
                                 style={{
@@ -130,19 +155,10 @@ export default function VideoGate({
                                 }}
                             >
                                 <button
-                                    onClick={handlePlay}
+                                    onClick={ytPlay}
                                     disabled={!ytReady}
-                                    style={{
-                                        appearance: 'none',
-                                        padding: '12px 20px',
-                                        borderRadius: 999,
-                                        border: 0,
-                                        fontWeight: 700,
-                                        color: '#fff',
-                                        background: 'var(--brand, #0ea5e9)',
-                                        cursor: ytReady ? 'pointer' : 'not-allowed',
-                                        boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
-                                    }}
+                                    className="btn"
+                                    style={{ padding: '12px 20px', fontWeight: 700 }}
                                     title={ytReady ? 'Reproducir' : 'Cargando…'}
                                 >
                                     ▶ Reproducir
@@ -150,18 +166,27 @@ export default function VideoGate({
                             </div>
                         )}
 
-                        {/* Escudo de clics transparente mientras reproduce:
-                evita que cualquier clic abra YouTube o pause el vídeo. */}
+                        {/* Escudo anti-clics durante la reproducción */}
                         {ytPlaying && (
-                            <div
-                                aria-hidden
-                                style={{
-                                    position: 'absolute', inset: 0,
-                                    // captura eventos para que no se pueda clicar el logo
-                                    pointerEvents: 'auto'
-                                }}
-                            />
+                            <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }} />
                         )}
+                    </div>
+
+                    {/* ----------------- Controles propios ----------------- */}
+                    <div className="video-controls" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 8 }}>
+                        <button className="btn btn-outline" onClick={ytToggle}>
+                            {ytPlaying ? 'Pausa ▌▌' : 'Play ▶'}
+                        </button>
+
+                        {allowSubtitles && (
+                            <button className="btn btn-outline" onClick={ytToggleCaptions} title="Subtítulos">
+                                {ytCaptions ? 'Subtítulos: ON' : 'Subtítulos: OFF'}
+                            </button>
+                        )}
+
+                        <button className="btn btn-outline" onClick={ytFullscreen} title="Pantalla completa">
+                            ⛶ Pantalla completa
+                        </button>
                     </div>
                 </div>
 
@@ -174,7 +199,7 @@ export default function VideoGate({
         );
     }
 
-    // ====================== Rama MP4 (HTML5 <video>) ======================
+    // ===================== MP4 (HTML5 <video>) =====================
     const wrapRef = useRef(null);
     const vidRef = useRef(null);
     const [watched, setWatched] = useState(0);
@@ -227,12 +252,16 @@ export default function VideoGate({
         return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
     }, []);
 
-    // Resolver rutas relativas con BASE_URL
     const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
         ? src
         : (src.startsWith('/')
             ? (import.meta.env.BASE_URL + src.replace(/^\//, ''))
             : (import.meta.env.BASE_URL + src)));
+
+    const mp4Fullscreen = () => {
+        const v = vidRef.current; if (!v) return;
+        (v.requestFullscreen || v.webkitRequestFullscreen || v.msRequestFullscreen)?.call(v);
+    };
 
     return (
         <div ref={wrapRef} style={{ display: 'grid', gap: 12 }}>
@@ -258,6 +287,11 @@ export default function VideoGate({
                         />
                     ))}
                 </video>
+
+                {/* Botón de pantalla completa para MP4 (además del nativo) */}
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
+                    <button className="btn btn-outline" onClick={mp4Fullscreen}>⛶ Pantalla completa</button>
+                </div>
             </div>
 
             {!ended && (
@@ -268,3 +302,4 @@ export default function VideoGate({
         </div>
     );
 }
+``

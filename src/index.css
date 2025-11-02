@@ -1,84 +1,154 @@
-
-:root{--brand:#0ea5e9}
-*{box-sizing:border-box}
-body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Ubuntu,Cantarell,'Noto Sans',sans-serif;background:#f8fafc;color:#0f172a}
-.btn{display:inline-flex;align-items:center;justify-content:center;padding:.5rem 1rem;border-radius:.6rem;font-weight:600;color:#fff;background:var(--brand);border:none;cursor:pointer}
-.btn-outline{display:inline-flex;align-items:center;justify-content:center;padding:.5rem 1rem;border-radius:.6rem;font-weight:600;border:1px solid var(--brand);color:var(--brand);background:#fff;cursor:pointer}
-.card{background:#fff;border-radius:1rem;box-shadow:0 1px 4px rgba(0,0,0,.08);padding:1.25rem}
-.badge{display:inline-flex;align-items:center;font-size:.85rem;padding:.1rem .5rem;border-radius:999px;background:#e0f2fe;color:#075985}
-.video-responsive{width:100%;height:auto;max-height:calc(100vh - 220px)}
-@media (max-width:768px){.video-responsive{max-height:calc(100vh - 180px)}}
-body.kiosk{overflow:hidden}
-
-/* ===== Iframe (YouTube/Vimeo) responsivo ===== */
-.iframe-box {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;                /* Mantiene 16:9 automáticamente */
-  max-height: calc(100vh - 220px);     /* Igual criterio que .video-responsive */
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-}
-
-/* El iframe (o el DIV donde la API de YT inserta el iframe) ocupa todo */
-.iframe-box > iframe,
-.iframe-box > div {
-  position: absolute;
-  inset: 0;            /* top/right/bottom/left = 0 */
-  width: 100%;
-  height: 100%;
-  border: 0;
-  display: block;
-}
-
-@media (max-width: 768px) {
-  .iframe-box {
-    max-height: calc(100vh - 180px);
-  }
-}
-
-/* ===== Limitar el ancho visual del reproductor y centrarlo ===== */
+/* ============================ */
+/*   Estilos base y variables   */
+/* ============================ */
 :root {
-    /* cambia este valor para hacerlo más pequeño o grande */
-    --video-max-width: 1600px; /* p.ej. 800px, 900px, 1100px */
+    --brand: #0ea5e9;
+    /* Ajustes de tamaño del reproductor */
+    --video-max-width: 1100px; /* ancho máximo en escritorio (p.ej. 1000px, 1200px) */
+    --vh-offset-desktop: 220px; /* margen inferior en escritorio para evitar scroll */
+    --vh-offset-mobile: 160px; /* margen inferior en móvil para evitar scroll */
+    /* Colores UI */
+    --bg: #f8fafc;
+    --fg: #0f172a;
+    --muted: #64748b;
+    --card: #fff;
+    --badge-bg: #e0f2fe;
+    --badge-fg: #075985;
+    --shadow: 0 1px 4px rgba(0,0,0,.08);
 }
 
-/* Contenedor de tamaño del player (aplica a YouTube y MP4) */
-.video-shell {
-    /* En móvil ocupa casi todo (80vw); en escritorio no pasa de --video-max-width */
-    width: clamp(360px, 90vw, var(--video-max-width));
-    margin: 0 auto; /* centra */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
 }
 
-/* Mantén tus clases existentes de vídeo/iframe */
+html, body {
+    height: 100%;
+}
+
+body {
+    margin: 0;
+    font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, 'Noto Sans', sans-serif;
+    background: var(--bg);
+    color: var(--fg);
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+/* ============================ */
+/*       Componentes UI         */
+/* ============================ */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .5rem 1rem;
+    border-radius: .6rem;
+    font-weight: 600;
+    color: #fff;
+    background: var(--brand);
+    border: none;
+    cursor: pointer;
+    transition: filter .15s ease, transform .02s ease;
+}
+
+    .btn:hover {
+        filter: brightness(.96);
+    }
+
+    .btn:active {
+        transform: translateY(1px);
+    }
+
+.btn-outline {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: .5rem;
+    padding: .5rem 1rem;
+    border-radius: .6rem;
+    font-weight: 600;
+    border: 1px solid var(--brand);
+    color: var(--brand);
+    background: #fff;
+    cursor: pointer;
+    transition: background .15s ease, color .15s ease;
+}
+
+    .btn-outline:hover {
+        background: #f0f9ff;
+    }
+
+.card {
+    background: var(--card);
+    border-radius: 1rem;
+    box-shadow: var(--shadow);
+    padding: 1.25rem;
+}
+
+.badge {
+    display: inline-flex;
+    align-items: center;
+    font-size: .85rem;
+    padding: .1rem .5rem;
+    border-radius: 999px;
+    background: var(--badge-bg);
+    color: var(--badge-fg);
+}
+
+/* Inputs utilitarios que usas en App.jsx */
+.border {
+    border: 1px solid rgba(15, 23, 42, .15);
+}
+
+.rounded {
+    border-radius: .5rem;
+}
+
+/* ============================ */
+/*      Reproductor (MP4)       */
+/* ============================ */
 .video-responsive {
     width: 100%;
     height: auto;
-    max-height: calc(100vh - 220px);
+    max-height: calc(100vh - var(--vh-offset-desktop));
+    background: #000;
+    border-radius: 8px;
 }
 
 @media (max-width: 768px) {
     .video-responsive {
-        max-height: calc(100vh - 180px);
+        max-height: calc(100vh - var(--vh-offset-mobile));
     }
 }
 
-/* Caja responsiva 16:9 para iframes (YouTube/Vimeo) */
+/* ============================ */
+/*      Reproductor (YouTube)   */
+/* ============================ */
+/* Limita y centra el ancho del player (aplica a YouTube y MP4) */
+.video-shell {
+    width: clamp(320px, 90vw, var(--video-max-width));
+    margin: 0 auto;
+}
+
+/* Caja 16:9 que contiene el iframe (la API lo inyecta dentro) */
 .iframe-box {
     position: relative;
     width: 100%;
-    aspect-ratio: 16 / 9;
-    max-height: calc(100vh - 220px);
+    aspect-ratio: 16 / 9; /* mantiene 16:9 */
+    max-height: calc(100vh - var(--vh-offset-desktop));
     background: #000;
     border-radius: 8px;
     overflow: hidden;
 }
 
+    /* El iframe (o el DIV inyectado por la IFrame API) ocupa todo el contenedor */
     .iframe-box > iframe,
     .iframe-box > div {
         position: absolute;
-        inset: 0;
+        inset: 0; /* top/right/bottom/left = 0 */
         width: 100%;
         height: 100%;
         border: 0;
@@ -86,7 +156,44 @@ body.kiosk{overflow:hidden}
     }
 
 @media (max-width: 768px) {
-    .iframe-box {
-        max-height: calc(100vh - 180px);
+    .video-shell {
+        width: 100%;
     }
+    /* en móvil, usa el ancho del card */
+    .iframe-box {
+        max-height: calc(100vh - var(--vh-offset-mobile));
+    }
+}
+
+/* Barra de controles propios (YouTube) — opcional si prefieres CSS en lugar de inline */
+.video-controls {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    justify-content: flex-end;
+    margin-top: 8px;
+}
+
+/* ============================ */
+/*            Varios            */
+/* ============================ */
+body.kiosk {
+    overflow: hidden;
+}
+
+/* Texto secundario que usas debajo del vídeo */
+.muted {
+    color: var(--muted);
+    font-size: 14px;
+}
+
+/* Accesibilidad foco */
+.btn:focus-visible,
+.btn-outline:focus-visible,
+input:focus-visible,
+select:focus-visible,
+button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 8px;
 }
