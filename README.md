@@ -1,17 +1,19 @@
+# Acogida – Danone Aldaya
 
-# Inducción v3.3.1 — Ready for GitHub Pages
+Aplicación web para la **inducción visual** de visitas y contratistas, con soporte multi‑idioma, control de visionado del vídeo, test y **generación de certificado**.
 
-## Pasos rápidos
-1) **Cambia el base de Vite** en `vite.config.js`:
-```js
-export default defineConfig({ base: '/TU_REPO/' }) // ← pon el nombre de tu repo
-```
-2) **Commit & push** a `main`.
-3) GitHub → **Settings → Pages** → Source: **GitHub Actions**.
-4) Espera al workflow `Deploy to GitHub Pages`.
-5) Tu URL: `https://TU_USUARIO.github.io/TU_REPO/`.
+**Producción:** https://carsalta.github.io/acogida/
 
-### Notas
-- `config.json`, `sw.js`, `manifest` y los **assets** se resuelven con `import.meta.env.BASE_URL`.
-- En `public/config.json` las rutas (vídeos, logos) van **sin barra inicial** (p. ej. `videos/...`, `brand/...`).
-- Si pones una URL absoluta `https://...`, se respetará tal cual.
+---
+
+## ✨ Características
+- 🌐 Multi‑idioma (ES/EN/FR/DE/PT)
+- 🎬 Vídeos MP4 y YouTube (sin controles externos)
+- ✅ Test y certificado PDF
+- 🧩 Sites con branding específico
+- 🛠️ Admin para editar configuración y descargar `config.json`
+- 🖥️ Modo kiosco (pantalla completa)
+
+---
+
+## 🗂️ Estructura

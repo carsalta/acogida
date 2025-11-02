@@ -37,7 +37,6 @@ export default function VideoGate({
     allowSubtitles = true,
     onDone,
 }) {
-    // Log de inicio cada vez que cambia la fuente
     useEffect(() => { if (src) logEvent('video_start', { src }); }, [src]);
 
     const youTubeId = getYouTubeId(src);
@@ -45,15 +44,16 @@ export default function VideoGate({
 
     // ====================== Rama YouTube ======================================
     const ytPlayerRef = useRef(null);
+    const [ytReady, setYtReady] = useState(false);
+    const [ytPlaying, setYtPlaying] = useState(false);
     const [ytEnded, setYtEnded] = useState(false);
 
-    // ID estable para el contenedor del player (donde la API inyecta el iframe)
     const playerDomId = useMemo(
         () => 'yt-' + Math.random().toString(36).slice(2),
         [youTubeId]
     );
 
-    useEffect(() => { setYtEnded(false); }, [youTubeId]);
+    useEffect(() => { setYtEnded(false); setYtPlaying(false); }, [youTubeId]);
 
     useEffect(() => {
         if (!isYouTube) return;
@@ -63,22 +63,27 @@ export default function VideoGate({
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
 
-            // Si no permites seek, ocultamos controles para reducir saltos
-            const controls = allowSeek ? 1 : 0;
-
             ytPlayerRef.current = new YT.Player(playerDomId, {
                 videoId: youTubeId,
                 playerVars: {
-                    rel: 0,
-                    modestbranding: 1,
-                    playsinline: 1,
-                    controls,
+                    // 👇 configuración para minimizar marca y quitar controles/clicks a YouTube
+                    controls: 0,           // sin controles (ponemos los nuestros)
+                    modestbranding: 1,     // marca mínima
+                    rel: 0,                // relacionados del mismo canal
+                    disablekb: 1,          // sin atajos teclado
                     fs: 1,
+                    playsinline: 1,
+                    iv_load_policy: 3,
                     origin: window.location.origin,
                 },
                 events: {
+                    onReady: () => setYtReady(true),
                     onStateChange: (e) => {
-                        if (e.data === window.YT.PlayerState.ENDED) {
+                        const S = window.YT.PlayerState;
+                        if (e.data === S.PLAYING) { setYtPlaying(true); }
+                        if (e.data === S.PAUSED) { setYtPlaying(false); }
+                        if (e.data === S.ENDED) {
+                            setYtPlaying(false);
                             setYtEnded(true);
                             onDone && onDone();
                             logEvent('video_done', { src });
@@ -92,21 +97,53 @@ export default function VideoGate({
             disposed = true;
             try { ytPlayerRef.current?.destroy?.(); } catch { }
         };
-    }, [isYouTube, youTubeId, playerDomId, allowSeek, onDone, src]);
+    }, [isYouTube, youTubeId, playerDomId, onDone, src]);
+
+    const handlePlay = () => {
+        try { ytPlayerRef.current?.playVideo(); } catch { }
+    };
 
     if (isYouTube) {
         return (
             <div style={{ display: 'grid', gap: 12 }}>
-                {/* Limita ancho y centra */}
+                {/* Contenedor con ancho limitado y centrado */}
                 <div className="video-shell">
-                    {/* Caja 16:9, altura limitada por CSS */}
-                    <div className="iframe-box">
-                        {/* La IFrame API insertará aquí el <iframe> ocupando todo */}
+                    {/* Caja 16:9 con altura limitada por CSS */}
+                    <div className="iframe-box" style={{ position: 'relative' }}>
                         <div
                             id={playerDomId}
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
+
+                        {/* Overlay propio: evita tener que clicar elementos de YouTube */}
+                        {(!ytPlaying) && (
+                            <div
+                                style={{
+                                    position: 'absolute', inset: 0, display: 'grid', placeItems: 'center',
+                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.15))'
+                                }}
+                            >
+                                <button
+                                    onClick={handlePlay}
+                                    disabled={!ytReady}
+                                    style={{
+                                        appearance: 'none',
+                                        padding: '12px 20px',
+                                        borderRadius: 999,
+                                        border: '0',
+                                        fontWeight: 700,
+                                        color: '#fff',
+                                        background: 'var(--brand, #0ea5e9)',
+                                        cursor: ytReady ? 'pointer' : 'not-allowed',
+                                        boxShadow: '0 4px 14px rgba(0,0,0,0.2)'
+                                    }}
+                                    title={ytReady ? 'Reproducir' : 'Cargando…'}
+                                >
+                                    ▶ Reproducir
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
 
@@ -154,7 +191,25 @@ export default function VideoGate({
         };
     }, [allowSeek, watched, onDone, src]);
 
-    // Resolver rutas relativas con BASE_URL (igual que tu lógica)
+    // Ajuste de altura (como tu versión original)
+    useEffect(() => {
+        const el = wrapRef.current; const v = vidRef.current;
+        if (!el || !v) return;
+        const compute = () => {
+            const rect = el.getBoundingClientRect();
+            const viewport = window.innerHeight || document.documentElement.clientHeight;
+            const margin = 24;
+            const maxH = Math.max(240, viewport - rect.top - margin);
+            v.style.maxHeight = maxH + 'px';
+            v.style.width = '100%';
+        };
+        compute();
+        const ro = new ResizeObserver(compute);
+        ro.observe(document.body);
+        window.addEventListener('resize', compute);
+        return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
+    }, []);
+
     const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
         ? src
         : (src.startsWith('/')
@@ -163,7 +218,6 @@ export default function VideoGate({
 
     return (
         <div ref={wrapRef} style={{ display: 'grid', gap: 12 }}>
-            {/* Limita ancho y centra */}
             <div className="video-shell">
                 <video
                     ref={vidRef}
