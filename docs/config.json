@@ -1,4 +1,6 @@
 {
+    "version": "2025-11-03-01",
+
     "defaultLang": "es",
     "enabledLangs": [ "es", "en", "fr", "de", "pt" ],
     "allowSeek": false,
