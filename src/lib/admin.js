@@ -5,9 +5,7 @@ const ADMIN_SESSION_KEY = 'admin:session';
 // TTL de la sesión: 8h (ajústalo si quieres)
 const ADMIN_SESSION_TTL_MS = 8 * 60 * 60 * 1000;
 
-/**
- * ¿Hay sesión de admin activa?
- */
+/** ¿Hay sesión de admin activa? */
 export function isAdmin() {
     try {
         const raw = localStorage.getItem(ADMIN_SESSION_KEY);
@@ -24,20 +22,27 @@ export function isAdmin() {
     }
 }
 
-/**
- * Cerrar sesión de admin.
- */
+/** Cerrar sesión de admin. */
 export function signOutAdmin() {
     localStorage.removeItem(ADMIN_SESSION_KEY);
 }
 
-/**
- * Persistir sesión de admin con TTL.
- */
+/** Persistir sesión de admin con TTL. */
 function persistAdminSession(ttlMs = ADMIN_SESSION_TTL_MS) {
     const exp = ttlMs > 0 ? Date.now() + ttlMs : null;
     const data = { v: 1, exp };
     localStorage.setItem(ADMIN_SESSION_KEY, JSON.stringify(data));
+}
+
+/** Normaliza nombres de algoritmo a los que acepta Web Crypto. */
+function normalizeAlgo(a) {
+    let s = String(a || 'SHA-256').trim().toUpperCase().replace(/_/g, '-');
+    // Aceptar variantes sin guion
+    if (s === 'SHA256') s = 'SHA-256';
+    if (s === 'SHA1') s = 'SHA-1';
+    if (s === 'SHA384') s = 'SHA-384';
+    if (s === 'SHA512') s = 'SHA-512';
+    return s;
 }
 
 /**
@@ -57,12 +62,17 @@ export async function ensureAdmin(cfg) {
 
     // Validación por hash
     if ((admin.method || '').toLowerCase() === 'hash') {
-        const algo = (admin.algo || 'SHA-256').toUpperCase(); // 'sha256' -> 'SHA-256'
+        const algo = normalizeAlgo(admin.algo || 'SHA-256');
+        const codeHash = (admin.codeHash || '').trim().toLowerCase();
+        if (!codeHash) return false;
+
         try {
             const enc = new TextEncoder();
             const digest = await crypto.subtle.digest(algo, enc.encode(input));
-            const hex = [...new Uint8Array(digest)].map(b => b.toString(16).padStart(2, '0')).join('');
-            const ok = hex === (admin.codeHash || '').toLowerCase();
+            const hex = [...new Uint8Array(digest)]
+                .map(b => b.toString(16).padStart(2, '0'))
+                .join('');
+            const ok = hex === codeHash;
             if (ok) persistAdminSession();
             return ok;
         } catch (e) {

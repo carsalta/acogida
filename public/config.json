@@ -6,12 +6,12 @@
     "allowSeek": false,
     "allowSubtitles": false,
 
+
     "admin": {
         "method": "hash",
-        "algo": "sha256",
+        "algo": "SHA-256",
         "codeHash": "7bdfe275a6f4892ffd69e3924c6842277ce722efd517511a44c15e6e433d1273"
     },
-
     "brand": {
         "name": "Danone",
         "primary": "#0ea5e9",
