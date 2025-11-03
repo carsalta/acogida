@@ -11,6 +11,7 @@ import Admin from './admin/Admin';
 import { ensureAdmin } from './lib/admin';
 import { getEnabledLangs, LANG_LABEL } from './lib/langs';
 import { sendMail, blobToBase64 } from './lib/email';
+import './index.css';
 
 const stepsES = ['Datos', 'Vídeo', 'Test', 'Certificado'];
 const stepsEN = ['Details', 'Video', 'Test', 'Certificate'];
@@ -41,7 +42,7 @@ function abs(p) {
     return p.startsWith('/') ? import.meta.env.BASE_URL + p.replace(/^\//, '') : import.meta.env.BASE_URL + p;
 }
 
-// 👇 NUEVO: elegir URL válida si viene objeto {youtube, mp4, url}
+// 👇 Convierte objeto/string de config a URL string usable por el reproductor
 function pickUrl(v) {
     if (typeof v === 'string') return v;
     return v?.youtube || v?.mp4 || v?.url || '';
@@ -55,7 +56,6 @@ export default function App() {
     const [participant, setParticipant] = useState(() => JSON.parse(localStorage.getItem('participant') || '{}'));
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
-
     const enabledLangs = React.useMemo(() => getEnabledLangs(cfg), [cfg]);
 
     useEffect(() => {
@@ -63,13 +63,17 @@ export default function App() {
         if (p.get('lang')) setLang(p.get('lang'));
         if (p.get('id')) setRoute('verify');
         if (p.get('site')) setSite(p.get('site'));
+        // 👇 permite entrar desde "Compartir"
+        if (p.get('type')) { setType(p.get('type')); setRoute('form'); }
         if (p.get('kiosk') === '1') {
             setKiosk(true);
             document.body.classList.add('kiosk');
             if (document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(() => { });
         }
     }, []);
+
     useEffect(() => { if (cfg?.forceLang) setLang(cfg.forceLang); }, [cfg?.forceLang]);
+
     useEffect(() => {
         if (!site) {
             const first = Object.keys(cfg?.sites || {})[0] || '';
@@ -82,10 +86,15 @@ export default function App() {
     const current = route === 'home' ? 0 : route === 'form' ? 0 : route === 'video' ? 1 : route === 'quiz' ? 2 : 3;
 
     // BRANDING activo: site.brand > global.brand
-    const brand = useMemo(() => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand ?? null), [cfg, site]);
-    useEffect(() => { if (brand?.primary) document.documentElement.style.setProperty('--brand', brand.primary); }, [brand?.primary]);
+    const brand = useMemo(() => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand || null), [cfg, site]);
+    useEffect(() => {
+        if (brand?.primary) {
+            document.documentElement.style.setProperty('--brand', brand.primary);
+        }
+    }, [brand?.primary]);
 
     const startType = (t) => { setType(t); setRoute('form'); };
+
     const onFormSubmit = (e) => {
         e.preventDefault();
         const f = new FormData(e.target);
@@ -103,6 +112,7 @@ export default function App() {
         localStorage.setItem('participant', JSON.stringify(data));
         setRoute('video');
     };
+
     const onVideoFinished = () => setRoute('quiz');
 
     const onQuizPassed = async () => {
@@ -111,8 +121,8 @@ export default function App() {
         const months = type === 'contrata' ? 12 : 24;
         const expiry = new Date(issue);
         expiry.setMonth(expiry.getMonth() + months);
-        const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
 
+        const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
         const certs = JSON.parse(localStorage.getItem('certs') || '[]');
         certs.push({ id, expiry: expiry.toISOString() });
         localStorage.setItem('certs', JSON.stringify(certs));
@@ -136,8 +146,7 @@ export default function App() {
                     lang === 'es' ? 'Certificado de Inducción' :
                         lang === 'pt' ? 'Certificado de Instruções de Segurança' :
                             lang === 'fr' ? 'Certificat de Sécurité' :
-                                lang === 'de' ? 'Sicherheitszertifikat' :
-                                    'Induction Certificate';
+                                lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
                 const html = `<p>${lang === 'es' ? 'Adjuntamos su certificado de inducción.' : 'Please find attached your induction certificate.'}</p>`;
                 await sendMail({
                     apiBase: cfg?.mail?.apiBase,
@@ -159,20 +168,20 @@ export default function App() {
         a.download = `certificado-${id}.pdf`;
         a.click();
         URL.revokeObjectURL(url);
+
         setRoute('done');
     };
 
     if (!cfg) return <div style={{ padding: 24 }}>Cargando configuración…</div>;
 
     const siteCfg = site ? cfg.sites?.[site] : null;
-    // 👇 usar URL válida incluso si viene objeto
     const fromSite = type ? siteCfg?.videos?.[type]?.[lang] : '';
     const fromGlobal = type ? cfg?.videos?.[type]?.[lang] : '';
     const srcCfg = pickUrl(fromSite) || pickUrl(fromGlobal);
     const srcFbk = type ? fallbackVideos?.[type]?.[lang] : '';
     const videoUrl = srcCfg || srcFbk || '';
-
     const subTracks = tracks(type, lang, enabledLangs);
+
     const allowSeekBool = asBool(cfg?.allowSeek);
     const allowSubsBool = asBool(cfg?.allowSubtitles);
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
@@ -182,14 +191,9 @@ export default function App() {
             <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
                 <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                     {brandLogo && <img src={brandLogo} alt={brand?.name || 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
-                    <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name || 'Inducción'}</h1>
+                    <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name || c.title || 'Inducción'}</h1>
                     <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
-                    <AdminBtn
-                        onClick={async () => {
-                            const ok = await ensureAdmin(cfg);
-                            if (ok) setRoute('admin');
-                        }}
-                    />
+                    <AdminBtn onClick={async () => { const ok = await ensureAdmin(cfg); if (ok) setRoute('admin'); }} />
                 </header>
                 <Verify c={c} />
             </div>
@@ -202,23 +206,15 @@ export default function App() {
         <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
             <header style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 {brandLogo && <img src={brandLogo} alt={brand?.name || 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
-                <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name || 'Inducción'}</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name || c.title || 'Inducción'}</h1>
                 <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
                 <SitePicker cfg={cfg} site={site} setSite={setSite} />
-                <AdminBtn
-                    onClick={async () => {
-                        const ok = await ensureAdmin(cfg);
-                        if (ok) setRoute('admin');
-                    }}
-                />
+                <AdminBtn onClick={async () => { const ok = await ensureAdmin(cfg); if (ok) setRoute('admin'); }} />
                 {kiosk && document.fullscreenElement && (
                     <button
                         className="btn btn-outline"
                         style={{ marginLeft: 'auto' }}
-                        onClick={() => {
-                            document.exitFullscreen?.();
-                            location.replace(location.pathname);
-                        }}
+                        onClick={() => { document.exitFullscreen?.(); location.replace(location.pathname); }}
                     >
                         Salir kiosco
                     </button>
@@ -235,17 +231,13 @@ export default function App() {
                         <span className="badge">{c.visitBadge}</span>
                         <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.visitTitle}</h3>
                         <p style={{ color: '#475569' }}>{c.visitDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>
-                            {c.visitBtn}
-                        </button>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>{c.visitBtn}</button>
                     </section>
                     <section className="card">
                         <span className="badge">{c.contractorBadge}</span>
                         <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.contractorTitle}</h3>
                         <p style={{ color: '#475569' }}>{c.contractorDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>
-                            {c.contractorBtn}
-                        </button>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>{c.contractorBtn}</button>
                     </section>
                 </div>
             )}
@@ -259,10 +251,18 @@ export default function App() {
                         <span />
                         <span>{c.startVideo}</span>
                     </div>
-                    <Field label={c.fields.name}><input name="name" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required /></Field>
-                    <Field label={c.fields.id}><input name="idDoc" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required /></Field>
-                    <Field label={c.fields.company}><input name="company" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required /></Field>
-                    <Field label={c.fields.email}><input type="email" name="email" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required /></Field>
+                    <Field label={c.fields.name}>
+                        <input name="name" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
+                    </Field>
+                    <Field label={c.fields.id}>
+                        <input name="idDoc" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
+                    </Field>
+                    <Field label={c.fields.company}>
+                        <input name="company" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
+                    </Field>
+                    <Field label={c.fields.email}>
+                        <input type="email" name="email" className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
+                    </Field>
                     <button className="btn" type="submit">{c.startVideo}</button>
                 </form>
             )}
@@ -282,7 +282,9 @@ export default function App() {
                         <button className="btn btn-outline" onClick={() => { setRoute('form'); }}>
                             ← {lang === 'es' ? 'Atrás' : 'Back'}
                         </button>
-                        <span style={{ fontSize: 14, color: '#64748b' }}>{(fallbackVideos?.[type]?.minutes || cfg?.videos?.[type]?.minutes || 0)} min</span>
+                        <span style={{ fontSize: 14, color: '#64748b' }}>
+                            {(fallbackVideos?.[type]?.minutes || cfg?.videos?.[type]?.minutes || 0)} min
+                        </span>
                     </div>
                 </div>
             )}
@@ -340,9 +342,6 @@ function SitePicker({ cfg, site, setSite }) {
 }
 function AdminBtn({ onClick }) {
     return (
-        <button className="btn" style={{ marginLeft: 'auto' }} onClick={onClick}>
-            Admin
-        </button>
+        <button className="btn" style={{ marginLeft: 'auto' }} onClick={onClick}>Admin</button>
     );
 }
-``

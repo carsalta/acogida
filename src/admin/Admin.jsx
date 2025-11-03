@@ -7,7 +7,7 @@ import Dashboard from './Dashboard';
 import QuestionsEditor from './QuestionsEditor';
 import { ALL_LANGS, LANG_LABEL, getEnabledLangs } from '../lib/langs';
 
-// Convierte cualquier formato a una URL string usable
+// 👇 Convierte { youtube/mp4/url } o string -> string URL final
 const toUrl = (v) => {
     if (typeof v === 'string') return v;
     return v?.youtube || v?.mp4 || v?.url || '';
@@ -15,7 +15,6 @@ const toUrl = (v) => {
 
 export default function Admin() {
     if (!isAdmin()) return <div style={{ padding: 24 }}>No autorizado</div>;
-
     const { cfg, saveOverrides, resetOverrides } = useConfig();
     const [qrImg, setQrImg] = useState({});
     const [site, setSite] = useState('');
@@ -23,7 +22,7 @@ export default function Admin() {
     const sites = useMemo(() => Object.keys(cfg?.sites || {}), [cfg]);
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
-    useEffect(() => { if (cfg && !site) setSite(sites[0] || ''); }, [cfg, sites, site]);
+    useEffect(() => { if (cfg && !site) { setSite(sites[0] || ''); } }, [cfg, sites, site]);
 
     const currentVideos = useMemo(() => {
         if (!cfg) return {};
@@ -54,6 +53,11 @@ export default function Admin() {
             };
         }
         saveOverrides(next);
+    };
+
+    const makeQr = async (key, url) => {
+        const data = await QRCode.toDataURL(url, { margin: 1, scale: 6 });
+        setQrImg(m => ({ ...m, [key]: data }));
     };
 
     const downloadCfg = () => {
@@ -141,7 +145,12 @@ export default function Admin() {
                     </div>
                     <div>
                         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Idioma por defecto</div>
-                        <select className="border rounded" style={{ padding: '4px 8px' }} value={cfg.defaultLang} onChange={e => onChangeDefaultLang(e.target.value)}>
+                        <select
+                            className="border rounded"
+                            style={{ padding: '4px 8px' }}
+                            value={cfg.defaultLang}
+                            onChange={e => onChangeDefaultLang(e.target.value)}
+                        >
                             {enabledLangs.map(l => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}
                         </select>
                     </div>
@@ -150,7 +159,12 @@ export default function Admin() {
 
             <Section id="site" title="Sitio / Planta" defaultOpen={false}>
                 {sites.length > 0 ? (
-                    <select className="border rounded" style={{ padding: '4px 8px' }} value={site} onChange={e => setSite(e.target.value)}>
+                    <select
+                        className="border rounded"
+                        style={{ padding: '4px 8px' }}
+                        value={site}
+                        onChange={e => setSite(e.target.value)}
+                    >
                         {sites.map(s => <option key={s} value={s}>{s}</option>)}
                     </select>
                 ) : (
@@ -162,22 +176,45 @@ export default function Admin() {
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
                     <label style={{ display: 'grid', gap: 4 }}>
                         <span style={{ fontSize: 14, color: '#334155' }}>Nombre (brand.name)</span>
-                        <input className="border rounded" style={{ padding: '4px 8px' }} placeholder="Mi Organización o Nombre de Planta" defaultValue={activeBrand?.name || ''} onBlur={(e) => setBrandField('name', e.target.value.trim())} />
+                        <input
+                            className="border rounded"
+                            style={{ padding: '4px 8px' }}
+                            placeholder="Mi Organización o Nombre de Planta"
+                            defaultValue={activeBrand?.name || ''}
+                            onBlur={(e) => setBrandField('name', e.target.value.trim())}
+                        />
                     </label>
                     <label style={{ display: 'grid', gap: 4 }}>
                         <span style={{ fontSize: 14, color: '#334155' }}>Color primario (brand.primary)</span>
-                        <input type="color" className="border rounded" style={{ height: 40, width: 100, padding: 4 }} defaultValue={activeBrand?.primary || '#0ea5e9'} onBlur={(e) => setBrandField('primary', e.target.value)} />
+                        <input
+                            type="color"
+                            className="border rounded"
+                            style={{ height: 40, width: 100, padding: 4 }}
+                            defaultValue={activeBrand?.primary || '#0ea5e9'}
+                            onBlur={(e) => setBrandField('primary', e.target.value)}
+                        />
                     </label>
                     <label style={{ display: 'grid', gap: 4, gridColumn: '1 / span 2' }}>
                         <span style={{ fontSize: 14, color: '#334155' }}>Logo URL (brand.logo)</span>
-                        <input className="border rounded" style={{ padding: '4px 8px' }} placeholder="brand/logo.png o https://..." defaultValue={activeBrand?.logo || ''} onBlur={(e) => setBrandField('logo', e.target.value.trim())} />
-                        <p style={{ fontSize: 12, color: '#64748b' }}>Sube el archivo a <code>public/brand/</code> y referencia con <code>brand/tu-logo.png</code> (sin barra inicial), o usa un enlace público.</p>
+                        <input
+                            className="border rounded"
+                            style={{ padding: '4px 8px' }}
+                            placeholder="brand/logo.png o https://..."
+                            defaultValue={activeBrand?.logo || ''}
+                            onBlur={(e) => setBrandField('logo', e.target.value.trim())}
+                        />
+                        <p style={{ fontSize: 12, color: '#64748b' }}>
+                            Sube el archivo a <code>public/brand/</code> y referencia con
+                            <code>brand/tu-logo.png</code> (sin barra inicial), o usa un enlace público.
+                        </p>
                     </label>
                     {activeBrand?.logo && (
                         <div style={{ gridColumn: '1 / span 2' }}>
                             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Previsualización</div>
                             <img
-                                src={activeBrand.logo.startsWith('http') ? activeBrand.logo : (import.meta.env.BASE_URL + activeBrand.logo.replace(/^\//, ''))}
+                                src={activeBrand.logo.startsWith('http')
+                                    ? activeBrand.logo
+                                    : (import.meta.env.BASE_URL + activeBrand.logo.replace(/^\//, ''))}
                                 alt="preview-logo"
                                 style={{ height: 48, width: 'auto', border: '1px solid #e2e8f0', borderRadius: 6, objectFit: 'contain' }}
                             />
@@ -196,6 +233,7 @@ export default function Admin() {
                     <div key={type} style={{ borderTop: '1px solid #e2e8f0', paddingTop: 12, marginTop: 8 }}>
                         <h4 className="font-semibold" style={{ textTransform: 'uppercase' }}>{type}</h4>
                         {enabledLangs.map(lang => {
+                            // 👇 Pintamos SIEMPRE una string, aunque la base tenga objeto
                             const current = currentVideos?.[type]?.[lang];
                             const shown = toUrl(current);
                             return (
@@ -215,9 +253,7 @@ export default function Admin() {
                 ))}
             </Section>
 
-            <Section id="questions" title="Editor de preguntas" defaultOpen={false}>
-                <QuestionsEditor />
-            </Section>
+            <Section id="questions" title="Editor de preguntas" defaultOpen={false}><QuestionsEditor /></Section>
 
             <Section id="mail" title="Correo (M365 Graph vía API)" defaultOpen={false}>
                 <div style={{ display: 'grid', gap: 12, gridTemplateColumns: '1fr 1fr' }}>
@@ -256,7 +292,10 @@ export default function Admin() {
                             style={{ padding: '4px 8px' }}
                             placeholder="rrhh@empresa.com, prevencion@empresa.com"
                             defaultValue={mailCC}
-                            onBlur={(e) => saveOverrides({ ...(cfg || {}), mail: { ...(cfg?.mail || {}), cc: e.target.value.split(',').map(s => s.trim()).filter(Boolean) } })}
+                            onBlur={(e) => saveOverrides({
+                                ...(cfg || {}),
+                                mail: { ...(cfg?.mail || {}), cc: e.target.value.split(',').map(s => s.trim()).filter(Boolean) }
+                            })}
                         />
                     </label>
                 </div>
@@ -277,17 +316,17 @@ export default function Admin() {
                                     <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                                         <div>
                                             <div style={{ fontWeight: 600 }}>{title}</div>
-                                            <a style={{ color: '#0369a1', textDecoration: 'underline', wordBreak: 'break-all' }} href={url} target="_blank" rel="noreferrer">{url}</a>
+                                            <a
+                                                style={{ color: '#0369a1', textDecoration: 'underline', wordBreak: 'break-all' }}
+                                                href={url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >{url}</a>
                                         </div>
-                                        <button
-                                            className="btn"
-                                            onClick={async () => {
-                                                const data = await QRCode.toDataURL(url, { margin: 1, scale: 6 });
-                                                setQrImg(m => ({ ...m, [k]: data }));
-                                            }}
-                                        >
-                                            Generar QR
-                                        </button>
+                                        <button className="btn" onClick={async () => {
+                                            const data = await QRCode.toDataURL(url, { margin: 1, scale: 6 });
+                                            setQrImg(m => ({ ...m, [k]: data }));
+                                        }}>Generar QR</button>
                                     </div>
                                     {qrImg[k] && <img alt={`qr-${k}`} src={qrImg[k]} style={{ marginTop: 8, height: 160, width: 160 }} />}
                                 </div>

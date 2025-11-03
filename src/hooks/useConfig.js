@@ -1,5 +1,6 @@
 ﻿// src/hooks/useConfig.js
 import { useEffect, useState, useCallback, useRef } from 'react';
+
 const LS_KEY = 'appConfigOverrides';
 
 // Convierte textos/numéricos a boolean real
@@ -17,7 +18,7 @@ function stripEmpty(obj) {
     return out;
 }
 
-// 👇 NUEVO: coerción a URL string
+// 👇 NUEVO: convierte valor de vídeo a string URL
 function toUrl(v) {
     if (typeof v === 'string') return v;
     return v?.youtube || v?.mp4 || v?.url || '';
@@ -44,17 +45,17 @@ function mergeCfg(base = {}, ov = {}) {
     if (bAdmin.algo) out.admin.algo = bAdmin.algo;
     if (bAdmin.codeHash) out.admin.codeHash = bAdmin.codeHash;
 
-    // --- videos (global) ---  ✅ aplanar por idioma
+    // videos (por módulo y por idioma) - aplanado a string
     const baseVideos = base?.videos || {};
     const ovVideos = ov?.videos || {};
     out.videos = {};
     for (const key of new Set([...Object.keys(baseVideos), ...Object.keys(ovVideos)])) {
         const b = baseVideos[key] || {};
         const o = ovVideos[key] || {};
-        out.videos[key] = coerceLangMap({ ...b, ...stripEmpty(o) });
+        out.videos[key] = coerceLangMap({ ...b, ...stripEmpty(o) }); // override vacío NO pisa
     }
 
-    // --- sites (brand + videos por sitio) ---  ✅ aplanar por idioma
+    // sites (brand + videos por sitio) - aplanado a string
     const baseSites = base?.sites || {};
     const ovSites = ov?.sites || {};
     out.sites = {};
@@ -74,6 +75,7 @@ function mergeCfg(base = {}, ov = {}) {
             videos: mergedVideos
         };
     }
+
     return out;
 }
 
@@ -120,18 +122,19 @@ function resolveOverridesForBase(base, raw) {
     const hasWrapper = Object.prototype.hasOwnProperty.call(raw, '__baseVersion');
     const __baseVersion = hasWrapper ? raw.__baseVersion : null;
     const data = hasWrapper ? raw.data : raw;
-    const bver = base?.version ?? null;
-    // ⚠️ Regla: si la base tiene version y el override no la tiene o no coincide, limpiar.
+    const bver = base?.version || null;
+    // ⚠️ Nueva regla: si la base tiene version y el override no la tiene o no coincide, limpiar.
     if (bver && __baseVersion !== bver) {
         localStorage.removeItem(LS_KEY);
         return {};
     }
-    return stripEmpty(data ?? {});
+    return stripEmpty(data || {});
 }
 
 export function useConfig() {
     const [cfg, setCfg] = useState(null);
     const baseRef = useRef(null); // para saber la versión al guardar
+
     const reload = useCallback(async () => {
         try {
             const base = await loadBaseConfig();
@@ -152,9 +155,9 @@ export function useConfig() {
         const onStorage = (e) => {
             if (e && e.key && e.key !== LS_KEY) return;
             const raw = readOverridesRaw();
-            const ov = resolveOverridesForBase(baseRef.current ?? {}, raw);
+            const ov = resolveOverridesForBase(baseRef.current || {}, raw);
             // ⚠️ Recalcular SIEMPRE desde la base actual, no desde prev
-            setCfg(() => normalize(mergeCfg(baseRef.current ?? {}, ov)));
+            setCfg(() => normalize(mergeCfg(baseRef.current || {}, ov)));
         };
         const onCustom = () => onStorage({ key: LS_KEY });
         window.addEventListener('storage', onStorage);
@@ -173,15 +176,16 @@ export function useConfig() {
         const safe = stripEmpty({
             ...rest,
             ...(over?.hasOwnProperty('allowSeek') ? { allowSeek: toBool(over.allowSeek) } : {}),
-            ...(over?.hasOwnProperty('allowSubtitles') ? { allowSubtitles: toBool(over.allowSubtitles) } : {})
+            ...(over?.hasOwnProperty('allowSubtitles') ? { allowSubtitles: toBool(over.allowSubtitles) } : {}),
         });
+
         const wrapped = {
-            __baseVersion: baseRef.current?.version ?? null,
+            __baseVersion: baseRef.current?.version || null,
             data: safe
         };
         localStorage.setItem(LS_KEY, JSON.stringify(wrapped));
         window.dispatchEvent(new Event('config:changed'));
-        setCfg((cur) => normalize(mergeCfg(cur ?? {}, safe)));
+        setCfg((cur) => normalize(mergeCfg(cur || {}, safe)));
     };
 
     const resetOverrides = () => {
