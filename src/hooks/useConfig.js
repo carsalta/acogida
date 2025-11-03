@@ -19,11 +19,20 @@ function stripEmpty(obj) {
 }
 
 // Merge profundo con política: base + override(no vacío)
+// ⚠️ Protege los campos sensibles de admin para que NUNCA los pise un override local.
 function mergeCfg(base = {}, ov = {}) {
     const out = { ...base, ...ov };
 
     // brand
     out.brand = { ...(base?.brand || {}), ...(ov?.brand || {}) };
+
+    // admin (protección de credenciales)
+    const bAdmin = base?.admin || {};
+    const oAdmin = ov?.admin || {};
+    out.admin = { ...bAdmin, ...oAdmin };
+    if (bAdmin.method) out.admin.method = bAdmin.method;
+    if (bAdmin.algo) out.admin.algo = bAdmin.algo;
+    if (bAdmin.codeHash) out.admin.codeHash = bAdmin.codeHash;
 
     // videos (por módulo y por idioma)
     const baseVideos = base?.videos || {};
@@ -32,7 +41,7 @@ function mergeCfg(base = {}, ov = {}) {
     for (const key of new Set([...Object.keys(baseVideos), ...Object.keys(ovVideos)])) {
         const b = baseVideos[key] || {};
         const o = ovVideos[key] || {};
-        out.videos[key] = { ...b, ...stripEmpty(o) }; // ⚠️ el override vacío NO pisa
+        out.videos[key] = { ...b, ...stripEmpty(o) }; // override vacío NO pisa
     }
 
     // sites (brand + videos por sitio)
@@ -95,14 +104,18 @@ function readOverridesRaw() {
     }
 }
 
-// Si la versión base cambia, invalida overrides
+// Si la versión base cambia o el override no tiene versión y la base sí, invalida overrides
 function resolveOverridesForBase(base, raw) {
     if (!raw) return {};
     // Soporta formato antiguo (sin __baseVersion)
-    const { __baseVersion, data } = raw.__baseVersion ? raw : { __baseVersion: null, data: raw };
+    const hasWrapper = Object.prototype.hasOwnProperty.call(raw, '__baseVersion');
+    const __baseVersion = hasWrapper ? raw.__baseVersion : null;
+    const data = hasWrapper ? raw.data : raw;
+
     const bver = base?.version || null;
-    if (bver && __baseVersion && __baseVersion !== bver) {
-        // versión incompatible: limpiamos overrides
+
+    // ⚠️ Nueva regla: si la base tiene version y el override no la tiene o no coincide, limpiar.
+    if (bver && __baseVersion !== bver) {
         localStorage.removeItem(LS_KEY);
         return {};
     }
@@ -134,7 +147,8 @@ export function useConfig() {
             if (e && e.key && e.key !== LS_KEY) return;
             const raw = readOverridesRaw();
             const ov = resolveOverridesForBase(baseRef.current || {}, raw);
-            setCfg((prev) => normalize(mergeCfg(prev || {}, ov)));
+            // ⚠️ Recalcular SIEMPRE desde la base actual, no desde prev
+            setCfg(() => normalize(mergeCfg(baseRef.current || {}, ov)));
         };
         const onCustom = () => onStorage({ key: LS_KEY });
 
@@ -148,11 +162,13 @@ export function useConfig() {
 
     // Guarda overrides y actualiza estado (normalizando) + versionado
     const saveOverrides = (over) => {
+        // ⚠️ No persistir NUNCA admin.* en overrides
+        const { admin: _ignoredAdmin, ...rest } = over || {};
         // asegura booleanos y limpia vacíos
         const safe = stripEmpty({
-            ...over,
-            ...(over.hasOwnProperty('allowSeek') ? { allowSeek: toBool(over.allowSeek) } : {}),
-            ...(over.hasOwnProperty('allowSubtitles') ? { allowSubtitles: toBool(over.allowSubtitles) } : {})
+            ...rest,
+            ...(over?.hasOwnProperty('allowSeek') ? { allowSeek: toBool(over.allowSeek) } : {}),
+            ...(over?.hasOwnProperty('allowSubtitles') ? { allowSubtitles: toBool(over.allowSubtitles) } : {})
         });
         const wrapped = {
             __baseVersion: baseRef.current?.version || null,
