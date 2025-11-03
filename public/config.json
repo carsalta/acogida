@@ -1,58 +1,64 @@
 {
-  "defaultLang": "es",
-  "enabledLangs": [
-    "es",
-    "en"
-  ],
-  "allowSeek": false,
-  "allowSubtitles": true,
-  "adminCode": "Secur_2025?",
-  "brand": {
-    "name": "Danone",
-    "primary": "#0ea5e9",
-    "logo": "brand/logo-global.png"
-  },
-  "mail": {
-    "enabled": false,
-    "apiBase": "",
-    "apiKey": "",
-    "cc": []
-  },
-  "videos": {
-    "visita": {
-        "es": "https://www.youtube.com/embed/LUti0D4melI",
-        "en": "https://www.youtube.com/embed/sq4RpiFyxfI",
-        "fr": "videos/fr/visita.mp4",
-        "de": "videos/de/visita.mp4",
-        "pt": "videos/pt/visita.mp4",
-        "minutes": 6
+    "defaultLang": "es",
+    "enabledLangs": [ "es", "en", "fr", "de", "pt" ],
+    "allowSeek": false,
+    "allowSubtitles": false,
+
+    "admin": {
+        "method": "hash",
+        "algo": "sha256",
+        "codeHash": "7bdfe275a6f4892ffd69e3924c6842277ce722efd517511a44c15e6e433d1273"
     },
-    "contrata": {
-        "es": "https://www.youtube.com/embed/SlbANB1e6W4",
-        "en": "https://www.youtube.com/embed/5c0lHewLp3g",
-        "fr": "videos/fr/contrata.mp4",
-        "de": "videos/de/contrata.mp4",
-        "pt": "videos/pt/contrata.mp4",
-        "minutes": 15
-    }
-  },
-  "sites": {
-    "Aldaya": {
-      "brand": {
-        "name": "Aldaya",
+
+    "brand": {
+        "name": "Danone",
         "primary": "#0ea5e9",
         "logo": "brand/logo-global.png"
-      },
-      "videos": {
+    },
+
+    "mail": {
+        "enabled": false,
+        "apiBase": "",
+        "apiKey": "",
+        "cc": []
+    },
+
+    "videos": {
         "visita": {
-            "es": "https://www.youtube.com/embed/LUti0D4melI",
-            "en": "https://www.youtube.com/embed/sq4RpiFyxfI"
+            "es": "https://www.youtube-nocookie.com/embed/LUti0D4melI",
+            "en": "https://www.youtube-nocookie.com/embed/sq4RpiFyxfI",
+            "fr": "videos/fr/visita.mp4",
+            "de": "videos/de/visita.mp4",
+            "pt": "videos/pt/visita.mp4",
+            "minutes": 6
         },
         "contrata": {
-            "es": "https://www.youtube.com/embed/SlbANB1e6W4",
-            "en": "https://www.youtube.com/embed/5c0lHewLp3g"
+            "es": "https://www.youtube-nocookie.com/embed/SlbANB1e6W4",
+            "en": "https://www.youtube-nocookie.com/embed/5c0lHewLp3g",
+            "fr": "videos/fr/contrata.mp4",
+            "de": "videos/de/contrata.mp4",
+            "pt": "videos/pt/contrata.mp4",
+            "minutes": 15
         }
-      }
+    },
+
+    "sites": {
+        "Aldaya": {
+            "brand": {
+                "name": "Aldaya",
+                "primary": "#0ea5e9",
+                "logo": "brand/logo-global.png"
+            },
+            "videos": {
+                "visita": {
+                    "es": "https://www.youtube-nocookie.com/embed/LUti0D4melI",
+                    "en": "https://www.youtube-nocookie.com/embed/sq4RpiFyxfI"
+                },
+                "contrata": {
+                    "es": "https://www.youtube-nocookie.com/embed/SlbANB1e6W4",
+                    "en": "https://www.youtube-nocookie.com/embed/5c0lHewLp3g"
+                }
+            }
+        }
     }
-  }
 }

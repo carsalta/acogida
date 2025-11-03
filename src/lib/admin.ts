@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics';
 
-/* -------------------------------- Helpers YouTube ------------------------------- */
+// ---------- Helpers YouTube ----------
 function getYouTubeId(url = '') {
     if (!url) return null;
     const u = String(url);
@@ -22,7 +22,6 @@ function ensureYouTubeAPI() {
         ytReadyPromise = new Promise((resolve) => {
             const s = document.createElement('script');
             s.src = 'https://www.youtube.com/iframe_api';
-            s.async = true;
             document.head.appendChild(s);
             window.onYouTubeIframeAPIReady = () => resolve(window.YT);
         });
@@ -30,7 +29,7 @@ function ensureYouTubeAPI() {
     return ytReadyPromise;
 }
 
-/* ----------------------------------- Componente ---------------------------------- */
+// ---------- Componente ----------
 export default function VideoGate({
     src,
     tracks = [],
@@ -43,11 +42,9 @@ export default function VideoGate({
     const youTubeId = getYouTubeId(src);
     const isYouTube = !!youTubeId;
 
-    /* ================================ YOUTUBE ================================= */
+    // ===================== YOUTUBE =====================
     const ytPlayerRef = useRef(null);
     const ytBoxRef = useRef(null);
-    const ytAllowedRef = useRef(0); // último segundo permitido (anti-seek)
-
     const [ytReady, setYtReady] = useState(false);
     const [ytPlaying, setYtPlaying] = useState(false);
     const [ytEnded, setYtEnded] = useState(false);
@@ -60,49 +57,30 @@ export default function VideoGate({
         [youTubeId]
     );
 
-    useEffect(() => { setYtEnded(false); setYtPlaying(false); ytAllowedRef.current = 0; }, [youTubeId]);
+    useEffect(() => { setYtEnded(false); setYtPlaying(false); }, [youTubeId]);
 
     useEffect(() => {
         if (!isYouTube) return;
 
         let disposed = false;
-
         (async () => {
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
 
             ytPlayerRef.current = new YT.Player(playerDomId, {
-                host: 'https://www.youtube-nocookie.com',            // modo privacy-enhanced
                 videoId: youTubeId,
                 playerVars: {
-                    controls: allowSeek ? 1 : 0,                       // si permites seek, muestra barra nativa
+                    controls: allowSeek ? 1 : 0,         // habilita barra si permites seek
                     modestbranding: 1,
                     rel: 0,
-                    disablekb: allowSeek ? 0 : 1,                      // desactivar atajos teclado si no hay seek
+                    disablekb: allowSeek ? 0 : 1,     // si no hay seek, desactiva atajos
                     fs: 1,
                     playsinline: 1,
                     iv_load_policy: 3,
                     origin: window.location.origin,
-                    // cc_load_policy: 1,                               // (opcional) subtítulos ON por defecto
                 },
                 events: {
-                    onReady: () => {
-                        setYtReady(true);
-                        ytAllowedRef.current = 0;
-                        // Guardia anti-seek: detecta saltos hacia delante y los revierte
-                        const guard = setInterval(() => {
-                            try {
-                                if (!ytPlayerRef.current || allowSeek) return;
-                                const t = ytPlayerRef.current.getCurrentTime?.() ?? 0;
-                                if (t > ytAllowedRef.current + 0.6) {
-                                    ytPlayerRef.current.seekTo(ytAllowedRef.current, true);
-                                } else {
-                                    ytAllowedRef.current = Math.max(ytAllowedRef.current, t);
-                                }
-                            } catch { /* noop */ }
-                        }, 250);
-                        ytPlayerRef.current.__guard = guard;
-                    },
+                    onReady: () => setYtReady(true),
                     onStateChange: (e) => {
                         const S = window.YT.PlayerState;
                         if (e.data === S.PLAYING) setYtPlaying(true);
@@ -120,20 +98,16 @@ export default function VideoGate({
 
         return () => {
             disposed = true;
-            try {
-                const p = ytPlayerRef.current;
-                if (p?.__guard) clearInterval(p.__guard);
-                p?.destroy?.();
-            } catch { /* noop */ }
+            try { ytPlayerRef.current?.destroy?.(); } catch { }
         };
-        // dependencias mínimas: evita recrear el player por cambios no críticos
-    }, [isYouTube, youTubeId, playerDomId, allowSeek]);
+    }, [isYouTube, youTubeId, playerDomId, allowSubtitles, uiLang, onDone, src]);
 
     const ytPlay = () => { try { ytPlayerRef.current?.playVideo(); } catch { } };
     const ytPause = () => { try { ytPlayerRef.current?.pauseVideo(); } catch { } };
     const ytToggle = () => (ytPlaying ? ytPause() : ytPlay());
 
     const ytToggleCaptions = () => {
+        // Intentamos activar/desactivar captions vía API (si hay pista en el vídeo)
         try {
             const on = !ytCaptions;
             setYtCaptions(on);
@@ -144,7 +118,7 @@ export default function VideoGate({
                 ytPlayerRef.current?.setOption('captions', 'track', {}); // mejor esfuerzo para ocultarlas
                 ytPlayerRef.current?.setOption('captions', 'reload', true);
             }
-        } catch { /* noop */ }
+        } catch { }
     };
 
     const ytFullscreen = () => {
@@ -160,15 +134,15 @@ export default function VideoGate({
                 {/* Tamaño limitado y centrado */}
                 <div className="video-shell">
                     {/* Caja 16:9 */}
-                    <div ref={ytBoxRef} className="iframe-box" style={{ position: 'relative' }}>
-                        {/* 1) La IFrame API inyecta aquí el <iframe> ocupando todo */}
+                    <div className="iframe-box" style={{ position: 'relative' }}>
+                        {/* 1) Aquí la IFrame API inyecta el <iframe> y ocupa todo */}
                         <div
                             id={playerDomId}
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
 
-                        {/* 2) Overlay de Play (cuando NO está reproduciendo) */}
+                        {/* 2) Overlay de Play (solo cuando NO está reproduciendo) */}
                         {!ytPlaying && (
                             <div
                                 style={{
@@ -190,7 +164,7 @@ export default function VideoGate({
                             </div>
                         )}
 
-                        {/* 3) Escudo anti-clics: por ENCIMA del iframe si no hay seek */}
+                        {/* 3) 👇 ESCUDO ANTICLICS: va DENTRO de .iframe-box y por ENCIMA del iframe */}
                         {ytPlaying && !allowSeek && (
                             <div
                                 aria-hidden
@@ -204,7 +178,6 @@ export default function VideoGate({
                             />
                         )}
                     </div>
-
                     {/* ----------------- Controles propios ----------------- */}
                     <div className="video-controls" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 8 }}>
                         <button className="btn btn-outline" onClick={ytToggle}>
@@ -232,7 +205,7 @@ export default function VideoGate({
         );
     }
 
-    /* ================================ MP4 (HTML5 <video>) ================================ */
+    // ===================== MP4 (HTML5 <video>) =====================
     const wrapRef = useRef(null);
     const vidRef = useRef(null);
     const [watched, setWatched] = useState(0);
@@ -266,7 +239,7 @@ export default function VideoGate({
         };
     }, [allowSeek, watched, onDone, src]);
 
-    // Ajuste de altura (máxima según viewport)
+    // Ajuste de altura como tu versión original
     useEffect(() => {
         const el = wrapRef.current; const v = vidRef.current;
         if (!el || !v) return;
