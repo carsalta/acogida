@@ -1,337 +1,100 @@
 // src/components/VideoGate.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { logEvent } from '../lib/analytics';
 
-/* -------------------------------- Helpers YouTube ------------------------------- */
-function getYouTubeId(url = '') {
-    if (!url) return null;
-    const u = String(url);
-    let m = u.match(/youtube\.com\/embed\/([^?&/]+)/i);
-    if (m) return m[1];
-    m = u.match(/youtu\.be\/([^?&/]+)/i);
-    if (m) return m[1];
-    m = u.match(/[?&]v=([^?&/]+)/i);
-    if (m) return m[1];
-    return null;
+function abs(p) {
+    if (!p) return '';
+    if (p.startsWith('http') || p.startsWith('data:')) return p;
+    return (import.meta.env.BASE_URL || '/') + p.replace(/^\//, '');
 }
 
-let ytReadyPromise = null;
-function ensureYouTubeAPI() {
-    if (window.YT?.Player) return Promise.resolve(window.YT);
-    if (!ytReadyPromise) {
-        ytReadyPromise = new Promise((resolve) => {
-            const s = document.createElement('script');
-            s.src = 'https://www.youtube.com/iframe_api';
-            s.async = true;
-            document.head.appendChild(s);
-            window.onYouTubeIframeAPIReady = () => resolve(window.YT);
-        });
-    }
-    return ytReadyPromise;
-}
-
-/* ----------------------------------- Componente ---------------------------------- */
 export default function VideoGate({
     src,
     tracks = [],
     allowSeek = false,
     allowSubtitles = true,
-    onDone,
+    onDone = () => { }
 }) {
-    useEffect(() => { if (src) logEvent('video_start', { src }); }, [src]);
+    const url = useMemo(() => (typeof src === 'string' ? src : ''), [src]);
+    const isYouTube = /(^https?:\/\/)?(www\.)?(youtube\.com|youtu\.be)\//i.test(url);
+    const [ready, setReady] = useState(false);
+    const videoRef = useRef(null);
 
-    const youTubeId = getYouTubeId(src);
-    const isYouTube = !!youTubeId;
-
-    /* ================================ YOUTUBE ================================= */
-    const ytPlayerRef = useRef(null);
-    const ytBoxRef = useRef(null);
-    const ytAllowedRef = useRef(0); // último segundo permitido (anti-seek)
-
-    const [ytReady, setYtReady] = useState(false);
-    const [ytPlaying, setYtPlaying] = useState(false);
-    const [ytEnded, setYtEnded] = useState(false);
-    const [ytCaptions, setYtCaptions] = useState(!!allowSubtitles);
-
-    const uiLang = (navigator.language || 'es').slice(0, 2);
-
-    const playerDomId = useMemo(
-        () => 'yt-' + Math.random().toString(36).slice(2),
-        [youTubeId]
-    );
-
-    useEffect(() => { setYtEnded(false); setYtPlaying(false); ytAllowedRef.current = 0; }, [youTubeId]);
-
+    // ---- HTML5 <video> (MP4) ----
     useEffect(() => {
-        if (!isYouTube) return;
-
-        let disposed = false;
-
-        (async () => {
-            const YT = await ensureYouTubeAPI();
-            if (disposed) return;
-
-            ytPlayerRef.current = new YT.Player(playerDomId, {
-                host: 'https://www.youtube-nocookie.com',            // modo privacy-enhanced
-                videoId: youTubeId,
-                playerVars: {
-                    controls: allowSeek ? 1 : 0,                       // si permites seek, muestra barra nativa
-                    modestbranding: 1,
-                    rel: 0,
-                    disablekb: allowSeek ? 0 : 1,                      // desactivar atajos teclado si no hay seek
-                    fs: 1,
-                    playsinline: 1,
-                    iv_load_policy: 3,
-                    origin: window.location.origin,
-                    // cc_load_policy: 1,                               // (opcional) subtítulos ON por defecto
-                },
-                events: {
-                    onReady: () => {
-                        setYtReady(true);
-                        ytAllowedRef.current = 0;
-                        // Guardia anti-seek: detecta saltos hacia delante y los revierte
-                        const guard = setInterval(() => {
-                            try {
-                                if (!ytPlayerRef.current || allowSeek) return;
-                                const t = ytPlayerRef.current.getCurrentTime?.() ?? 0;
-                                if (t > ytAllowedRef.current + 0.6) {
-                                    ytPlayerRef.current.seekTo(ytAllowedRef.current, true);
-                                } else {
-                                    ytAllowedRef.current = Math.max(ytAllowedRef.current, t);
-                                }
-                            } catch { /* noop */ }
-                        }, 250);
-                        ytPlayerRef.current.__guard = guard;
-                    },
-                    onStateChange: (e) => {
-                        const S = window.YT.PlayerState;
-                        if (e.data === S.PLAYING) setYtPlaying(true);
-                        if (e.data === S.PAUSED) setYtPlaying(false);
-                        if (e.data === S.ENDED) {
-                            setYtPlaying(false);
-                            setYtEnded(true);
-                            onDone && onDone();
-                            logEvent('video_done', { src });
-                        }
-                    },
-                },
-            });
-        })();
-
+        if (isYouTube) return;
+        const v = videoRef.current;
+        if (!v) return;
+        const onLoaded = () => setReady(true);
+        const onEnded = () => onDone();
+        v.addEventListener('loadedmetadata', onLoaded);
+        v.addEventListener('ended', onEnded);
+        // Bloquear seek si no está permitido
+        if (!allowSeek) {
+            let last = 0;
+            const onTimeUpdate = () => { if (v.currentTime > last + 1) v.currentTime = last; else last = v.currentTime; };
+            v.addEventListener('timeupdate', onTimeUpdate);
+            return () => {
+                v.removeEventListener('timeupdate', onTimeUpdate);
+                v.removeEventListener('loadedmetadata', onLoaded);
+                v.removeEventListener('ended', onEnded);
+            };
+        }
         return () => {
-            disposed = true;
-            try {
-                const p = ytPlayerRef.current;
-                if (p?.__guard) clearInterval(p.__guard);
-                p?.destroy?.();
-            } catch { /* noop */ }
+            v.removeEventListener('loadedmetadata', onLoaded);
+            v.removeEventListener('ended', onEnded);
         };
-        // dependencias mínimas: evita recrear el player por cambios no críticos
-    }, [isYouTube, youTubeId, playerDomId, allowSeek]);
+    }, [isYouTube, allowSeek, onDone]);
 
-    const ytPlay = () => { try { ytPlayerRef.current?.playVideo(); } catch { } };
-    const ytPause = () => { try { ytPlayerRef.current?.pauseVideo(); } catch { } };
-    const ytToggle = () => (ytPlaying ? ytPause() : ytPlay());
-
-    const ytToggleCaptions = () => {
-        try {
-            const on = !ytCaptions;
-            setYtCaptions(on);
-            if (on) {
-                ytPlayerRef.current?.setOption('captions', 'track', { languageCode: uiLang });
-                ytPlayerRef.current?.setOption('captions', 'reload', true);
-            } else {
-                ytPlayerRef.current?.setOption('captions', 'track', {}); // mejor esfuerzo para ocultarlas
-                ytPlayerRef.current?.setOption('captions', 'reload', true);
-            }
-        } catch { /* noop */ }
-    };
-
-    const ytFullscreen = () => {
-        const el = ytBoxRef.current;
-        if (!el) return;
-        const rfs = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
-        rfs?.call(el);
-    };
-
+    // ---- YouTube <iframe> ----
+    // Para simplicidad (sin cargar IFrame API), dejamos un botón "Marcar visto".
+    // Si prefieres gating estricto con la API, te preparo otra versión con enablejsapi.
     if (isYouTube) {
+        const ytSrc = url.includes('enablejsapi=1')
+            ? url
+            : (url + (url.includes('?') ? '&' : '?') + 'rel=0&modestbranding=1&playsinline=1');
+
         return (
-            <div style={{ display: 'grid', gap: 12 }}>
-                {/* Tamaño limitado y centrado */}
+            <div>
                 <div className="video-shell">
-                    {/* Caja 16:9 */}
-                    <div ref={ytBoxRef} className="iframe-box" style={{ position: 'relative' }}>
-                        {/* 1) La IFrame API inyecta aquí el <iframe> ocupando todo */}
-                        <div
-                            id={playerDomId}
-                            aria-label="YouTube player"
-                            style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+                    <div className="iframe-box">
+                        <iframe
+                            title="training-video"
+                            src={ytSrc}
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerPolicy="strict-origin-when-cross-origin"
+                            allowFullScreen
                         />
-
-                        {/* 2) Overlay de Play (cuando NO está reproduciendo) */}
-                        {!ytPlaying && (
-                            <div
-                                style={{
-                                    position: 'absolute', inset: 0,
-                                    display: 'grid', placeItems: 'center',
-                                    background: 'linear-gradient(transparent, rgba(0,0,0,0.15))',
-                                    zIndex: 2
-                                }}
-                            >
-                                <button
-                                    onClick={ytPlay}
-                                    disabled={!ytReady}
-                                    className="btn"
-                                    style={{ padding: '12px 20px', fontWeight: 700 }}
-                                    title={ytReady ? 'Reproducir' : 'Cargando…'}
-                                >
-                                    ▶ Reproducir
-                                </button>
-                            </div>
-                        )}
-
-                        {/* 3) Escudo anti-clics: por ENCIMA del iframe si no hay seek */}
-                        {ytPlaying && !allowSeek && (
-                            <div
-                                aria-hidden
-                                style={{
-                                    position: 'absolute',
-                                    inset: 0,
-                                    zIndex: 3,
-                                    pointerEvents: 'auto',   // captura clics para que NO lleguen al iframe
-                                    background: 'transparent'
-                                }}
-                            />
-                        )}
-                    </div>
-
-                    {/* ----------------- Controles propios ----------------- */}
-                    <div className="video-controls" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 8 }}>
-                        <button className="btn btn-outline" onClick={ytToggle}>
-                            {ytPlaying ? 'Pausa ▌▌' : 'Play ▶'}
-                        </button>
-
-                        {allowSubtitles && (
-                            <button className="btn btn-outline" onClick={ytToggleCaptions} title="Subtítulos">
-                                {ytCaptions ? 'Subtítulos: ON' : 'Subtítulos: OFF'}
-                            </button>
-                        )}
-
-                        <button className="btn btn-outline" onClick={ytFullscreen} title="Pantalla completa">
-                            ⛶ Pantalla completa
-                        </button>
                     </div>
                 </div>
 
-                {!ytEnded && (
-                    <p style={{ fontSize: 14, color: '#475569' }}>
-                        Reproduce el vídeo completo para continuar.
-                    </p>
-                )}
+                <div className="video-controls">
+                    <button className="btn btn-outline" onClick={onDone}>
+                        ✓ Marcar visto
+                    </button>
+                </div>
             </div>
         );
     }
 
-    /* ================================ MP4 (HTML5 <video>) ================================ */
-    const wrapRef = useRef(null);
-    const vidRef = useRef(null);
-    const [watched, setWatched] = useState(0);
-    const [ended, setEnded] = useState(false);
-
-    useEffect(() => { setWatched(0); setEnded(false); }, [src]);
-
-    useEffect(() => {
-        const v = vidRef.current;
-        if (!v) return;
-
-        const onTime = () => setWatched((w) => Math.max(w, v.currentTime));
-        const onSeek = () => {
-            if (!allowSeek && v.currentTime > watched + 0.5) {
-                v.currentTime = Math.max(0, watched);
-            }
-        };
-        const onEnded = () => {
-            setEnded(true);
-            onDone && onDone();
-            logEvent('video_done', { src });
-        };
-
-        v.addEventListener('timeupdate', onTime);
-        v.addEventListener('seeking', onSeek);
-        v.addEventListener('ended', onEnded);
-        return () => {
-            v.removeEventListener('timeupdate', onTime);
-            v.removeEventListener('seeking', onSeek);
-            v.removeEventListener('ended', onEnded);
-        };
-    }, [allowSeek, watched, onDone, src]);
-
-    // Ajuste de altura (máxima según viewport)
-    useEffect(() => {
-        const el = wrapRef.current; const v = vidRef.current;
-        if (!el || !v) return;
-        const compute = () => {
-            const rect = el.getBoundingClientRect();
-            const viewport = window.innerHeight || document.documentElement.clientHeight;
-            const margin = 24;
-            const maxH = Math.max(240, viewport - rect.top - margin);
-            v.style.maxHeight = maxH + 'px';
-            v.style.width = '100%';
-        };
-        compute();
-        const ro = new ResizeObserver(compute);
-        ro.observe(document.body);
-        window.addEventListener('resize', compute);
-        return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
-    }, []);
-
-    const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
-        ? src
-        : (src.startsWith('/')
-            ? (import.meta.env.BASE_URL + src.replace(/^\//, ''))
-            : (import.meta.env.BASE_URL + src)));
-
-    const mp4Fullscreen = () => {
-        const v = vidRef.current; if (!v) return;
-        (v.requestFullscreen || v.webkitRequestFullscreen || v.msRequestFullscreen)?.call(v);
-    };
-
+    // ---- Player MP4 ----
+    const mp4 = abs(url);
     return (
-        <div ref={wrapRef} style={{ display: 'grid', gap: 12 }}>
-            <div className="video-shell">
-                <video
-                    ref={vidRef}
-                    src={resolvedSrc}
-                    controls
-                    className="video-responsive"
-                    style={{ borderRadius: 8, background: '#000' }}
-                    controlsList={allowSeek ? 'nodownload' : 'nodownload noplaybackrate'}
-                    preload="metadata"
-                    playsInline
-                >
-                    {allowSubtitles && (tracks || []).map((t) => (
-                        <track
-                            key={t.src}
-                            kind="subtitles"
-                            src={t.src}
-                            srcLang={t.srclang}
-                            label={t.label}
-                            default={t.default || false}
-                        />
-                    ))}
-                </video>
+        <div>
+            <video
+                ref={videoRef}
+                className="video-responsive"
+                controls
+                controlsList={allowSeek ? 'nodownload' : 'nodownload noplaybackrate'}
+                style={{ width: '100%', background: '#000', borderRadius: 8 }}
+            >
+                <source src={mp4} type="video/mp4" />
+                {allowSubtitles && tracks.map((t, i) => (
+                    <track key={i} src={t.src} kind="subtitles" srcLang={t.srclang} label={t.label} default={t.default} />
+                ))}
+                Tu navegador no soporta la reproducción de vídeo.
+            </video>
 
-                {/* Botón de pantalla completa para MP4 (además del nativo) */}
-                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 8 }}>
-                    <button className="btn btn-outline" onClick={mp4Fullscreen}>⛶ Pantalla completa</button>
-                </div>
-            </div>
-
-            {!ended && (
-                <p style={{ fontSize: 14, color: '#475569' }}>
-                    Reproduce el vídeo completo para continuar.
-                </p>
-            )}
+            {!ready && <div style={{ marginTop: 8, color: '#64748b', fontSize: 14 }}>Cargando vídeo…</div>}
         </div>
     );
 }
