@@ -1,62 +1,221 @@
 {
-  "title": "Video Acogida",
-  "visitBadge": "Visitas",
-  "visitTitle": "Soy VISITA (6 min)",
-  "visitDesc": "Recorrido esencial de seguridad antes de tu llegada.",
-  "visitBtn": "Empezar como VISITA",
-  "contractorBadge": "Contratas",
-  "contractorTitle": "Soy CONTRATA (15 min)",
-  "contractorDesc": "Introducción obligatoria para personal externo.",
-  "contractorBtn": "Empezar como CONTRATA",
-  "fields": {
-    "name": "Nombre y apellidos",
-    "id": "DNI/NIE/Pasaporte",
-    "company": "Empresa",
-    "email": "Email"
-  },
-  "startVideo": "Iniciar vídeo",
-  "videoTitle": {
-    "visita": "Vídeo para Visitas",
-    "contrata": "Vídeo para Contratas"
-  },
-  "mustWatch": "Debes ver el vídeo completo para continuar.",
-  "quizTitle": "Cuestionario",
-  "checkBtn": "Comprobar y finalizar",
-  "wrong": "Respuesta incorrecta. Revisa y corrige.",
-  "done": "¡Listo! Certificado generado y descargado.",
-  "verifyHint": "Escanea el QR del PDF para verificar el estado.",
-  "newStart": "Nuevo intento",
-  "finish": "Finalizar",
-  "finishAndRetry": "Finalizar y nuevo intento",
-  "verifyPage": {
-    "checking": "Comprobando…",
-    "valid": "✓ Certificado válido",
-    "expired": "⚠ Certificado caducado",
-    "notfound": "✖ No encontrado"
-  },
-  "questions": {
-    "visita": [
-      {
-        "id": "v1",
-        "text": "¿Dónde se reúne el personal en caso de evacuación?",
-        "options": [
-          "Punto de encuentro señalizado",
-          "Cafetería",
-          "Entrada de camiones"
+    "title": "Video Acogida",
+    "visitBadge": "Visitas",
+    "visitTitle": "Soy VISITA (6 min)",
+    "visitDesc": "Recorrido esencial de seguridad antes de tu llegada.",
+    "visitBtn": "Empezar como VISITA",
+    "contractorBadge": "Contratas",
+    "contractorTitle": "Soy CONTRATA (15 min)",
+    "contractorDesc": "Introducción obligatoria para personal externo.",
+    "contractorBtn": "Empezar como CONTRATA",
+    "fields": {
+        "name": "Nombre y apellidos",
+        "id": "DNI/NIE/Pasaporte",
+        "company": "Empresa",
+        "email": "Email"
+    },
+    "startVideo": "Iniciar vídeo",
+    "videoTitle": {
+        "visita": "Vídeo para Visitas",
+        "contrata": "Vídeo para Contratas"
+    },
+    "mustWatch": "Debes ver el vídeo completo para continuar.",
+    "quizTitle": "Cuestionario",
+    "checkBtn": "Comprobar y finalizar",
+    "wrong": "Respuesta incorrecta. Revisa y corrige.",
+    "done": "¡Listo! Certificado generado y descargado.",
+    "verifyHint": "Escanea el QR del PDF para verificar el estado.",
+    "newStart": "Nuevo intento",
+    "finish": "Finalizar",
+    "finishAndRetry": "Finalizar y nuevo intento",
+    "verifyPage": {
+        "checking": "Comprobando…",
+        "valid": "✓ Certificado válido",
+        "expired": "⚠ Certificado caducado",
+        "notfound": "✖ No encontrado"
+    },
+    "questions": {
+        "visita": [
+            {
+                "id": "v1",
+                "text": "¿Dónde se reúne el personal en caso de evacuación?",
+                "options": [
+                    "Punto de encuentro señalizado",
+                    "Cafetería",
+                    "Entrada de camiones"
+                ],
+                "correct": 0
+            }
         ],
-        "correct": 0
-      }
-    ],
-    "contrata": [
-      {
-        "id": "c01",
-        "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
-        "options": [
-          "Al punto de reunión.",
-          "Al exterior de la planta, en un lugar sin riesgo"
-        ],
-        "correct": 1
-      }
-    ]
-  }
+        "contrata": [
+            {
+                "id": "c01",
+                "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
+                "options": [
+                    "Al punto de reunión.",
+                    "Al exterior de la planta, en un lugar que no presente riesgo"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c02",
+                "text": "¿Es necesario el uso obligatorio de protección auditiva dentro del centro?",
+                "options": [
+                    "Sí, en las zonas señalizadas",
+                    "No, pues las intervenciones son de corta duración"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c03",
+                "text": "¿Está permitido llevar reloj o collares en las zonas de producción?",
+                "options": [
+                    "No",
+                    "Sí"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c04",
+                "text": "¿Los Equipos de Protección Individual necesarios para su trabajo se los debe proporcionar?",
+                "options": [
+                    "Mi empresa",
+                    "DANONE S.A."
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c05",
+                "text": "¿Ha sido informado de los Riesgos y de las zonas donde debe desarrollar su actividad?",
+                "options": [
+                    "Sí",
+                    "No"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c06",
+                "text": "¿Está permitido el uso de herramientas en mal estado o que carezcan de marcado CE?",
+                "options": [
+                    "Solo previa valoración de las deficiencias",
+                    "No, en ningún caso"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c07",
+                "text": "Al realizar trabajos en una zona debe…",
+                "options": [
+                    "Mantenerse el orden y limpieza durante toda la intervención",
+                    "Recoger y limpiar al finalizar la jornada"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c08",
+                "text": "Cuando realice intervenciones de corte y soldadura, trabajos en espacios confinados (por ejemplo trabajos en interior de depósitos), en altura, Loto…",
+                "options": [
+                    "Revisaré que los equipos que precise estén en perfecto estado.",
+                    "Solicitaré y seguiré todos los pasos que se indican en el “Permiso de Trabajo”"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c09",
+                "text": "¿Cuándo realiza una intervención en una máquina, debe bloquear las fuentes de energía?",
+                "options": [
+                    "Sí, siempre.",
+                    "No, si soy yo el único que interviene"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c10",
+                "text": "El arnés y el casco con barbuquejo es de uso obligatorio…",
+                "options": [
+                    "Siempre que se realicen trabajos en altura",
+                    "Siempre que los trabajos en altura estén por encima de 2m"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c11",
+                "text": "Cuando realicemos trabajos con escaleras manuales en zonas donde transiten LGVs deberemos…",
+                "options": [
+                    "Balizar la zona con vallas",
+                    "Balizar la zona con conos",
+                    "Está completamente prohibido realizar trabajos en altura en estas zonas",
+                    "Ninguna es correcta"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c12",
+                "text": "Estará completamente prohibido…",
+                "options": [
+                    "Transitar o detenerse entre los LGVs y su zona de carga o descarga",
+                    "Posicionarse sobre las horquillas de los LGVs o debajo de éstas cuando se encuentren levantadas",
+                    "El acceso a la zona de LGVs a todo personal no autorizado",
+                    "Todas las anteriores"
+                ],
+                "correct": 3
+            },
+            {
+                "id": "c13",
+                "text": "¿Está permitido comer…?",
+                "options": [
+                    "En cualquier parte del recinto de la fábrica",
+                    "Solo en los puntos autorizados a tal efecto"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c14",
+                "text": "¿Qué debe hacer antes de entrar en zonas productivas?",
+                "options": [
+                    "Lavarse las manos",
+                    "Apagar el teléfono móvil"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c15",
+                "text": "¿Puede dejar abiertas puertas o ventanas de zonas productivas?",
+                "options": [
+                    "Sí, porque así se ventila la zona",
+                    "No, porque podría permitir el paso de plagas y/o mohos"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c16",
+                "text": "¿Cómo debe vestir para entrar en una zona productiva?",
+                "options": [
+                    "Con zapatos de seguridad, pantalón largo sin bolsillos superiores y camiseta de manga larga sin cuello abierto ni botones",
+                    "Con zapatos de seguridad, pantalón largo sin bolsillos superiores, camiseta de manga larga sin cuello abierto ni botones, gorro que cubra la totalidad del cabello y barbuquejo si tiene barba o bigote"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c17",
+                "text": "¿Qué debe hacer con los materiales sobrantes y/o residuos que genere?",
+                "options": [
+                    "Depositarlos en el depósito, contenedor o almacén que corresponda",
+                    "Tirar los líquidos sobrantes al desagüe"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c18",
+                "text": "En caso de fuga de amoniaco deberemos:",
+                "options": [
+                    "Evacuar las instalaciones.",
+                    "Permanecer en el puesto de trabajo hasta recibir por megafonía o mediante el equipo de alarma el aviso de evacuación o confinamiento.",
+                    "Ir directamente al punto de encuentro."
+                ],
+                "correct": 1
+            }
+        ]
+    }
 }
+    

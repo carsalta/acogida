@@ -1,62 +1,221 @@
 {
-  "title": "Safety Instruction",
-  "visitBadge": "Visitors",
-  "visitTitle": "I am a VISITOR (6 min)",
-  "visitDesc": "Essential safety briefing before arrival.",
-  "visitBtn": "Start as VISITOR",
-  "contractorBadge": "Contractors",
-  "contractorTitle": "I am a CONTRACTOR (15 min)",
-  "contractorDesc": "Mandatory induction for external personnel.",
-  "contractorBtn": "Start as CONTRACTOR",
-  "fields": {
-    "name": "Full name",
-    "id": "ID/Passport",
-    "company": "Company",
-    "email": "Email"
-  },
-  "startVideo": "Start video",
-  "videoTitle": {
-    "visita": "Video for Visitors",
-    "contrata": "Video for Contractors"
-  },
-  "mustWatch": "You must watch the full video to continue.",
-  "quizTitle": "Quiz",
-  "checkBtn": "Check and finish",
-  "wrong": "Wrong answer. Please correct.",
-  "done": "Done! Certificate generated and downloaded.",
-  "verifyHint": "Scan the PDF QR to verify status.",
-  "newStart": "New attempt",
-  "finish": "Finish",
-  "finishAndRetry": "Finish & New attempt",
-  "verifyPage": {
-    "checking": "Checking…",
-    "valid": "✓ Certificate valid",
-    "expired": "⚠ Certificate expired",
-    "notfound": "✖ Not found"
-  },
-  "questions": {
-    "visita": [
-      {
-        "id": "v1",
-        "text": "Where do people meet in case of evacuation?",
-        "options": [
-          "Marked assembly point",
-          "Cafeteria",
-          "Truck gate"
+    "title": "Safety Instruction",
+    "visitBadge": "Visitors",
+    "visitTitle": "I am a VISITOR (6 min)",
+    "visitDesc": "Essential safety briefing before arrival.",
+    "visitBtn": "Start as VISITOR",
+    "contractorBadge": "Contractors",
+    "contractorTitle": "I am a CONTRACTOR (15 min)",
+    "contractorDesc": "Mandatory induction for external personnel.",
+    "contractorBtn": "Start as CONTRACTOR",
+    "fields": {
+        "name": "Full name",
+        "id": "ID/Passport",
+        "company": "Company",
+        "email": "Email"
+    },
+    "startVideo": "Start video",
+    "videoTitle": {
+        "visita": "Video for Visitors",
+        "contrata": "Video for Contractors"
+    },
+    "mustWatch": "You must watch the full video to continue.",
+    "quizTitle": "Quiz",
+    "checkBtn": "Check and finish",
+    "wrong": "Wrong answer. Please correct.",
+    "done": "Done! Certificate generated and downloaded.",
+    "verifyHint": "Scan the PDF QR to verify status.",
+    "newStart": "New attempt",
+    "finish": "Finish",
+    "finishAndRetry": "Finish & New attempt",
+    "verifyPage": {
+        "checking": "Checking…",
+        "valid": "✓ Certificate valid",
+        "expired": "⚠ Certificate expired",
+        "notfound": "✖ Not found"
+    },
+    "questions": {
+        "visita": [
+            {
+                "id": "v1",
+                "text": "Where do people meet in case of evacuation?",
+                "options": [
+                    "Marked assembly point",
+                    "Cafeteria",
+                    "Truck gate"
+                ],
+                "correct": 0
+            }
         ],
-        "correct": 0
-      }
-    ],
-    "contrata": [
-      {
-        "id": "c01",
-        "text": "In case the evacuation alarm rings you should go to…",
-        "options": [
-          "The meeting point",
-          "The exterior of the factory, in a place with no risks"
-        ],
-        "correct": 1
-      }
-    ]
-  }
+        "contrata": [
+            {
+                "id": "c01",
+                "text": "In case the evacuation alarm rings you should go to…",
+                "options": [
+                    "The meeting point",
+                    "The exterior of the factory, in a place where there are no risks"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c02",
+                "text": "Is hearing protection used inside the centre of Danone?",
+                "options": [
+                    "Yes, it is mandatory in the signed areas",
+                    "No, is not mandatory because the work has a short duration"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c03",
+                "text": "Jewelry and using make-up in production areas is permitted?",
+                "options": [
+                    "No, it's not",
+                    "Yes, it is"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c04",
+                "text": "Who must provide you the PPE necessary for your work?",
+                "options": [
+                    "My company",
+                    "DANONE S.A."
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c05",
+                "text": "Have you received information about risks of your task and in the places where you develop your work?",
+                "options": [
+                    "Yes, I have",
+                    "No, I haven’t"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c06",
+                "text": "Is the use of tools in a bad condition or without a CE marking permitted?",
+                "options": [
+                    "Only with a previous deficiencies evaluation",
+                    "No, it isn’t in any case."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c07",
+                "text": "When you perform a job in an area you should…",
+                "options": [
+                    "Keep your work area tidy and clean during the work being carried out.",
+                    "Leave everything tidy when you finished"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c08",
+                "text": "When you perform actions such as welding or working with fire or working in confined spaces (for example working inside deposits), working at height, lock out tag out…",
+                "options": [
+                    "You must check the equipment is in good condition.",
+                    "You must request and follow every step included in the work permit."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c09",
+                "text": "Is cutting energy supply to lock all energy sources when you perform an intervention in a machine necessary?",
+                "options": [
+                    "Yes, it always is necessary",
+                    "No, it isn’t if I am the only one doing the job"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c10",
+                "text": "The use of safety harness and helmet with chin protection are obligatory…",
+                "options": [
+                    "Always when working at height.",
+                    "Always when working at a height of more than 2m."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c11",
+                "text": "When you perform work with manual ladders in areas where LGVs operate you must…",
+                "options": [
+                    "Designate the work area with fences",
+                    "Designate the work area with cones",
+                    "It is completely forbidden to perform work at height in these areas",
+                    "No previous answers are correct"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c12",
+                "text": "It is forbidden to ...",
+                "options": [
+                    "Work or stop between LGVs and their loading or unloading area",
+                    "Be above or under LGVs forks when they are lifted",
+                    "Access LGVs area for all unauthorized personnel",
+                    "All of the above answers are correct"
+                ],
+                "correct": 3
+            },
+            {
+                "id": "c13",
+                "text": "Eating is permitted…",
+                "options": [
+                    "Anywhere in the factory area",
+                    "Only at points authorized for this purpose"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c14",
+                "text": "What should you do before accessing to production areas?",
+                "options": [
+                    "Wash hands",
+                    "Turn off mobile phone"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c15",
+                "text": "Can you leave open doors or windows in production areas?",
+                "options": [
+                    "Yes, because that way the area is ventilated",
+                    "No, because it could allow the access of pests and/or molds."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c16",
+                "text": "How should you dress when entering production area?",
+                "options": [
+                    "With safety shoes, long trousers without upper pockets and long-sleeved shirt without open collar or buttons",
+                    "With safety shoes, long trousers without upper pockets, long-sleeved shirt without open collar or buttons, hat that covers all hair, also, if you have beard or mustache cover them."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "c17",
+                "text": "What should you do with any remaining and/or waste materials that you generate?",
+                "options": [
+                    "Deposit them in the corresponding container.",
+                    "Throw away excess fluids"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "c18",
+                "text": "In the event of an ammonia leak, we should:",
+                "options": [
+                    "Evacuate the premises.",
+                    "Remain at the workplace until receiving the evacuation or confinement order through the public address system or through the alarm and evacuation team.",
+                    "Go directly to the meeting point."
+                ],
+                "correct": 1
+            }
+        ]
+    }
 }
+    
