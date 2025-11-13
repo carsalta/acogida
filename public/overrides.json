@@ -1,0 +1,13 @@
+{
+    "enabledLangs": [ "es", "en" ],
+    "defaultLang": "es",
+    "allowSeek": false,
+    "allowSubtitles": true,
+    "brand": {},
+    "videos": {},
+    "questions": {
+        "visita": [],
+        "contrata": []
+    },
+    "sites": {}
+}
