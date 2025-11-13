@@ -1,17 +1,27 @@
-cat > src / components / QuestionsEditor.jsx << 'EOF'
 import React, { useMemo, useRef, useState } from 'react';
 import { useConfig } from '../hooks/useConfig';
-import { ALL_LANGS, LANG_LABEL, getEnabledLangs } from '../lib/langs';
+import { LANG_LABEL, getEnabledLangs } from '../lib/langs';
 
-/* ===========================
-   Normalización del JSON
-   =========================== */
+/* ============================================
+   Normalización del JSON de preguntas (robusta)
+   ============================================ */
 
+/**
+ * Acepta distintas variantes de JSON:
+ *  A) { visita: [...], contrata: [...] }
+ *  B) { questions: { visita: [...], contrata: [...] } }
+ *  C) Por idioma:
+ *     { es:{ visita:[...], contrata:[...] }, en:{ visita:[...], contrata:[...] } }
+ *  D) Por tipo -> idioma:
+ *     { visita:{ es:[...], en:[...] }, contrata:{ es:[...], en:[...] } }
+ */
 function normalizeImportedQuestions(raw, enabledLangs) {
     if (!raw || typeof raw !== 'object') throw new Error('JSON vacío o inválido');
 
+    // Si viene envuelto en { questions: ... }
     const src = raw.questions && typeof raw.questions === 'object' ? raw.questions : raw;
 
+    // Caso A: por tipo directo
     if (src.visita || src.contrata) {
         return {
             visita: Array.isArray(src.visita) ? src.visita : [],
@@ -19,6 +29,7 @@ function normalizeImportedQuestions(raw, enabledLangs) {
         };
     }
 
+    // Caso C: por idioma
     const langsAsKeys = enabledLangs.filter(l => src[l] && typeof src[l] === 'object');
     if (langsAsKeys.length) {
         const mergeType = (type) =>
@@ -30,9 +41,8 @@ function normalizeImportedQuestions(raw, enabledLangs) {
                         acc[idx].id = q.id ?? acc[idx].id ?? `${type}_${idx + 1}`;
                         acc[idx].type = q.type ?? acc[idx].type ?? 'single';
                         const text = q.text || q.title || q.pregunta || '';
-                        if (text) {
-                            acc[idx].text = { ...(acc[idx].text || {}), [l]: text };
-                        }
+                        if (text) acc[idx].text = { ...(acc[idx].text || {}), [l]: text };
+
                         if (Array.isArray(q.options)) {
                             acc[idx].options = acc[idx].options || [];
                             q.options.forEach((opt, j) => {
@@ -53,12 +63,10 @@ function normalizeImportedQuestions(raw, enabledLangs) {
                 return acc;
             }, []);
 
-        return {
-            visita: mergeType('visita'),
-            contrata: mergeType('contrata')
-        };
+        return { visita: mergeType('visita'), contrata: mergeType('contrata') };
     }
 
+    // Caso D: por tipo -> idioma
     const isTypeLang =
         (src.visita && typeof src.visita === 'object' && Object.keys(src.visita).some(k => Array.isArray(src.visita[k]))) ||
         (src.contrata && typeof src.contrata === 'object' && Object.keys(src.contrata).some(k => Array.isArray(src.contrata[k])));
@@ -76,14 +84,13 @@ function normalizeImportedQuestions(raw, enabledLangs) {
                     if (!q) return;
                     const t = (q.text || q.title || '').toString();
                     if (t) base.text = { ...(base.text || {}), [l]: t };
+
                     if (Array.isArray(q.options)) {
                         base.options = base.options || [];
                         q.options.forEach((opt, j) => {
                             base.options[j] = base.options[j] || {};
                             const ot = (opt.text || opt.label || '').toString();
-                            if (ot) {
-                                base.options[j].text = { ...(base.options[j].text || {}), [l]: ot };
-                            }
+                            if (ot) base.options[j].text = { ...(base.options[j].text || {}), [l]: ot };
                             if (typeof opt.correct === 'boolean') base.options[j].correct = opt.correct;
                         });
                     }
@@ -93,20 +100,18 @@ function normalizeImportedQuestions(raw, enabledLangs) {
             }
             return out;
         };
-        return {
-            visita: build('visita'),
-            contrata: build('contrata')
-        };
+        return { visita: build('visita'), contrata: build('contrata') };
     }
 
+    // Si llega como array plano, lo colgamos en visita
     if (Array.isArray(src)) return { visita: src, contrata: [] };
 
     throw new Error('Estructura de preguntas no reconocida');
 }
 
-/* ===========================
+/* ===================
    Validación mínima
-   =========================== */
+   =================== */
 function validateQuestionsStruct(qs) {
     const types = ['visita', 'contrata'];
     types.forEach(t => {
@@ -123,9 +128,8 @@ function validateQuestionsStruct(qs) {
 }
 
 /* ===========================
-   Componente
+   Componente principal (UI)
    =========================== */
-
 export default function QuestionsEditor() {
     const { cfg, saveOverrides } = useConfig();
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
@@ -151,16 +155,23 @@ export default function QuestionsEditor() {
             const text = await file.text();
             const raw = JSON.parse(text);
 
+            // Normaliza + valida
             const normalized = normalizeImportedQuestions(raw, enabledLangs);
             validateQuestionsStruct(normalized);
 
+            // Persiste SIEMPRE en GLOBAL: cfg.questions
             const next = { ...(cfg || {}) };
-            next.questions = normalized; // SIEMPRE GLOBAL
+            next.questions = normalized;
             await saveOverrides(next);
 
             e.target.value = '';
             alert('Preguntas importadas (global) y guardadas correctamente.');
+
+            // (opcional) log de verificación en consola
+            // eslint-disable-next-line no-console
+            console.log('[QuestionsEditor] Guardado GLOBAL cfg.questions =', next.questions);
         } catch (err) {
+            // eslint-disable-next-line no-console
             console.error(err);
             setImportError(err.message || 'No se pudo importar el JSON');
             e.target.value = '';
@@ -195,6 +206,7 @@ export default function QuestionsEditor() {
                 <p style={{ color: '#b91c1c', fontSize: 13 }}>Error al importar: {importError}</p>
             )}
 
+            {/* Resumen simple */}
             <div style={{ border: '1px solid #e2e8f0', borderRadius: 8, padding: 12 }}>
                 <div style={{ fontWeight: 600, marginBottom: 8 }}>Resumen actual (global)</div>
                 <div style={{ display: 'grid', gap: 8, gridTemplateColumns: '1fr 1fr' }}>
@@ -211,4 +223,3 @@ export default function QuestionsEditor() {
         </div>
     );
 }
-EOF
