@@ -33,18 +33,65 @@
         "valid": "✓ Certificado válido",
         "expired": "⚠ Certificado caducado",
         "notfound": "✖ No encontrado"
+
+    },
+    "policy": {
+        "header": "Política y Compromiso de Calidad y Seguridad Alimentaria",
+        "openDoc": "Abrir documento",
+        "mustRead": "Debes revisar el documento completo.",
+        "ackLabel": "He leído y acepto la Política y el Compromiso de Calidad y Seguridad Alimentaria.",
+        "scrollHint": "Desplázate hasta el final del documento para habilitar la aceptación."
+
     },
     "questions": {
         "visita": [
             {
                 "id": "v1",
-                "text": "¿Dónde se reúne el personal en caso de evacuación?",
+                "text": "En caso de escuchar la alarma de evacuación se dirigirá..",
                 "options": [
-                    "Punto de encuentro señalizado",
-                    "Cafetería",
-                    "Entrada de camiones"
+                    "Al punto de reunión",
+                    "Al exterior de la planta, en lugar que no presente riesgo."
+                    
+                ],
+                "correct": 1
+            },
+            {
+                "id": "v2",
+                "text": "Esta permitido comer..",
+                "options": [
+                    "En cualquier parte del recinto de la fábrica",
+                    "Solo en los puntos autorizados a tal efecto"                  
+                ],
+                "correct": 1
+            },
+            {
+                "id": "v3",
+                "text": "¿Qué debe hacer antes de entrar en las zonas productivas?",
+                "options": [
+                    "Lavarse las manos",
+                    "Apagar el télefono móvil"              
                 ],
                 "correct": 0
+            },
+            {
+                "id": "v4",
+                "text": "¿Qué debe hacer con los materiales y/o residuos que genere?",
+                "options": [
+                    "Depositarlos en el depósito, contenedor o almacén que corresponda",
+                    "Tirar los líquidos sobrantes al desagüe"
+
+                ],
+                "correct": 0
+            },
+            {
+                "id": "v5",
+                "text": "En caso de fuga de amoniaco deberemos",
+                "options": [
+                    "Evacuar las instalaciones",
+                    "Permanecer en el puesto de trabajo hasta recibir por megafonía o mediante el equipo de alarma el aviso de evacuación o confinaminento",
+                    "Ir directamente al punto de encuentro"
+                ],
+                "correct": 1
             }
         ],
         "contrata": [

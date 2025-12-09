@@ -34,17 +34,62 @@
         "expired": "⚠ Certificate expired",
         "notfound": "✖ Not found"
     },
+
+    "policy": {
+        "header": "Quality & Food Safety Policy and Commitment",
+        "openDoc": "Open document",
+        "mustRead": "You must review the entire document.",
+        "ackLabel": "I have read and accept the Quality & Food Safety Policy and Commitment.",
+        "scrollHint": "Scroll to the end of the document to enable acknowledgment."
+    },
+
     "questions": {
         "visita": [
             {
                 "id": "v1",
-                "text": "Where do people meet in case of evacuation?",
+                "text": "If the evacuation alarm sounds, you should go to...",
                 "options": [
-                    "Marked assembly point",
-                    "Cafeteria",
-                    "Truck gate"
+                    "The meeting point",
+                    "Outside the plant, in a place where there are no risks."
+                ],
+                "correct": 1
+            },
+            {
+                "id": "v2",
+                "text": "Is eating permitted...",
+                "options": [
+                    "Anywhere in the factory area",
+                    "Only at points authorized for this purpose"
+                ],
+                "correct": 1
+            },
+            {
+                "id": "v3",
+                "text": "What should you do before entering production areas?",
+                "options": [
+                    "Wash hands",
+                    "Turn off mobile phone"
                 ],
                 "correct": 0
+            },
+            {
+                "id": "v4",
+                "text": "What should you do with any remaining and/or waste materials that you generate?",
+                "options": [
+                    "Deposit them in the corresponding container.",
+                    "Throw away excess fluids"
+                ],
+                "correct": 0
+            },
+            {
+                "id": "v5",
+                "text": "In the event of an ammonia leak, we should:",
+                "options": [
+                    "Evacuate the premises.",
+                    "Remain at the workplace until receiving the evacuation or confinement order through the public address system or through the alarm and evacuation team.",
+                    "Go directly to the meeting point."
+                ],
+                "correct": 1
             }
         ],
         "contrata": [
