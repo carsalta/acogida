@@ -283,5 +283,6 @@ export default function App() {
 function Field({ label, children }) { return (<label style={{ display: 'grid', gap: 4 }}><span style={{ fontSize: 14, color: '#334155' }}>{label}</span>{children}</label>); }
 function LangPicker({ lang, setLang, langs }) { return (<select value={lang} onChange={(e) => setLang(e.target.value)} className="border rounded" style={{ padding: '4px 8px' }}>{langs.map(l => <option key={l} value={l}>{LANG_LABEL[l]}</option>)}</select>); }
 function SitePicker({ cfg, site, setSite }) { const sites = Object.keys(cfg?.sites ?? {}); if (!sites.length) return null; return (<select value={site} onChange={(e) => setSite(e.target.value)} className="border rounded" style={{ padding: '4px 8px' }}>{sites.map(s => <option key={s} value={s}>{s}</option>)}</select>); }
-function AdminBtn({ onClick }) { return <button className="btn" style={{ marginLeft: 'auto' }} onClick={onClick
-
+function AdminBtn({ onClick }) {
+    return <button className="btn" style={{ marginLeft: 'auto' }} onClick={onClick}>Admin</button>;
+}
