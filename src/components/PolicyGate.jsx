@@ -247,7 +247,6 @@ export default function PolicyGate({
             >
                 <span aria-hidden="true" style={{ fontWeight: 700 }}>
                     {ok ? '✓' : !scrolledToEnd ? '⚠' : '!'}
-                    {ok ? '✓' : !scrolledToEnd ? '⚠' : '!'}
                 </span>
                 <span style={{ fontSize: 14 }}>{toast.text}</span>
             </div>
