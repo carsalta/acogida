@@ -5,13 +5,13 @@ import React, { useEffect, useRef, useState, useMemo } from 'react';
 /**
  * Props:
  *  - title: string
- *  - url: string (PDF, PPT/PPTX, DOC/DOCX) - preferiblemente público y accesible por HTTPS
+ *  - url: string (PDF, PPT/PPTX, DOC/DOCX) accesible por HTTPS
  *  - mustScroll: boolean (default true)
  *  - mustAcknowledge: boolean (default true)
  *  - labels: { openDoc, mustRead, ackLabel, scrollHint, toastReady, toastNeedScroll, toastNeedAck }
  *  - onStatusChange: (ok: boolean) => void  // ok = scrolledToEnd && ack
- *  - isKiosk?: boolean                       // ajusta alturas del visor
- *  - forceDirectPdf?: boolean                // si true, PDFs se incrustan directamente (default true)
+ *  - isKiosk?: boolean
+ *  - forceDirectPdf?: boolean                // true = PDF directo (default true)
  */
 
 export default function PolicyGate({
@@ -28,9 +28,8 @@ export default function PolicyGate({
     const [ack, setAck] = useState(!mustAcknowledge);
     const [opened, setOpened] = useState(false);
 
-    // Estado de visor
     const [effectiveUrl, setEffectiveUrl] = useState(url || '');
-    const [embedType, setEmbedType] = useState/** @type {'pdf'|'office'|'raw'|''} */('');
+    const [embedType, setEmbedType] = useState(''); // 'pdf' | 'office' | 'raw' | ''
     const [embedError, setEmbedError] = useState(null);
     const [iframeLoaded, setIframeLoaded] = useState(false);
 
@@ -41,7 +40,7 @@ export default function PolicyGate({
     const isPpt = useMemo(() => lowerUrl.endsWith('.ppt') || lowerUrl.endsWith('.pptx'), [lowerUrl]);
     const isDoc = useMemo(() => lowerUrl.endsWith('.doc') || lowerUrl.endsWith('.docx'), [lowerUrl]);
 
-    // Construcción de URL del visor
+    // Construcción de URL del visor (sin Google Viewer)
     useEffect(() => {
         setEmbedError(null);
         setIframeLoaded(false);
@@ -52,14 +51,15 @@ export default function PolicyGate({
             return;
         }
 
-        // PDFs: incrustación directa por defecto
+        // PDF → incrustación directa
         if (isPdf && forceDirectPdf) {
-            setEffectiveUrl(url);
+            const pdfUrl = `${url}#toolbar=1&navpanes=0&scrollbar=1`;
+            setEffectiveUrl(pdfUrl);
             setEmbedType('pdf');
             return;
         }
 
-        // Office formats (PPT/PPTX/DOC/DOCX): Office viewer
+        // Office formats (PPT/PPTX/DOC/DOCX) → Office Viewer
         if (isPpt || isDoc) {
             const officeUrl = `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`;
             setEffectiveUrl(officeUrl);
@@ -67,15 +67,14 @@ export default function PolicyGate({
             return;
         }
 
-        // Fallback “raw” (para otros tipos o si se desactiva forceDirectPdf)
+        // Fallback para otros tipos (imágenes/HTML)
         setEffectiveUrl(url);
         setEmbedType('raw');
     }, [url, isPdf, isPpt, isDoc, forceDirectPdf]);
 
-    // Habilitación: SOLO scroll final + aceptación
+    // Habilitar continuar únicamente con scroll+aceptación
     useEffect(() => {
-        const ok = scrolledToEnd && ack;
-        onStatusChange?.(ok);
+        onStatusChange && onStatusChange(scrolledToEnd && ack);
     }, [scrolledToEnd, ack, onStatusChange]);
 
     // Detecta scroll hasta el final
@@ -86,42 +85,77 @@ export default function PolicyGate({
         if (atBottom) setScrolledToEnd(true);
     };
 
-    // Texto del toast
+    // Toast
     const ok = scrolledToEnd && ack;
     const toast = (() => {
         if (!scrolledToEnd) {
-            return {
-                color: '#ef4444',
-                bg: '#fee2e2',
-                text: labels.toastNeedScroll || 'Desplázate hasta el final del documento para continuar.',
-            };
+            return { color: '#ef4444', bg: '#fee2e2', text: labels.toastNeedScroll || 'Desplázate hasta el final del documento para continuar.' };
         }
         if (mustAcknowledge && !ack) {
-            return {
-                color: '#b45309',
-                bg: '#fef3c7',
-                text: labels.toastNeedAck || 'Marca la casilla de aceptación para continuar.',
-            };
+            return { color: '#b45309', bg: '#fef3c7', text: labels.toastNeedAck || 'Marca la casilla de aceptación para continuar.' };
         }
-        return {
-            color: '#166534',
-            bg: '#ecfdf5',
-            text: labels.toastReady || 'Política leída y aceptada. Puedes continuar.',
-        };
+        return { color: '#166534', bg: '#ecfdf5', text: labels.toastReady || 'Política leída y aceptada. Puedes continuar.' };
     })();
 
-    // Alturas dinámicas
+    // Alturas
     const viewHeight = isKiosk ? '60vh' : 420;
     const iframeHeight = isKiosk ? '60vh' : 800;
 
-    // Si el visor falla, ocultamos iframe y mostramos fallback
-    const showIframe = Boolean(effectiveUrl) && !embedError;
+    // Render helpers (JS puro, sin tipos)
+    const renderPdf = () => (
+        <>
+            {/* 1) visor nativo vía iframe (sin sandbox) */}
+            <iframe
+                title={title}
+                src={effectiveUrl}
+                style={{ width: '100%', height: iframeHeight, border: 0 }}
+                onLoad={() => setIframeLoaded(true)}
+                onError={(e) => setEmbedError((e && e.message) || 'pdf-iframe-error')}
+            />
+            {/* 2) Fallback: <object> */}
+            {!iframeLoaded && (
+                <object
+                    data={url}
+                    type="application/pdf"
+                    width="100%"
+                    height={iframeHeight}
+                    aria-label={title}
+                    onError={(e) => setEmbedError((e && e.message) || 'pdf-object-error')}
+                >
+                    <p style={{ padding: 12 }}>
+                        No se puede incrustar el PDF. Usa el botón <strong>“Abrir documento”</strong>.
+                    </p>
+                </object>
+            )}
+        </>
+    );
+
+    const renderOffice = () => (
+        <iframe
+            title={title}
+            src={effectiveUrl}
+            style={{ width: '100%', height: iframeHeight, border: 0 }}
+            sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
+            onLoad={() => setIframeLoaded(true)}
+            onError={(e) => setEmbedError((e && e.message) || 'office-iframe-error')}
+        />
+    );
+
+    const renderRaw = () => (
+        <iframe
+            title={title}
+            src={effectiveUrl}
+            style={{ width: '100%', height: iframeHeight, border: 0 }}
+            onLoad={() => setIframeLoaded(true)}
+            onError={(e) => setEmbedError((e && e.message) || 'raw-iframe-error')}
+        />
+    );
 
     return (
         <section className="card" style={{ display: 'grid', gap: 12 }}>
             <h3 style={{ fontSize: 18, fontWeight: 600 }}>{title}</h3>
 
-            {/* Abrir en pestaña nueva (siempre disponible) */}
+            {/* Abrir en pestaña nueva */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
                 <button
                     type="button"
@@ -158,27 +192,20 @@ export default function PolicyGate({
                             background: '#fff',
                         }}
                     >
-                        {showIframe ? (
-                            <iframe
-                                title={title}
-                                src={effectiveUrl}
-                                style={{ width: '100%', height: iframeHeight, border: 0 }}
-                                // sandbox amplia pero segura; ajustar si el proveedor lo requiere
-                                sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
-                                onLoad={() => setIframeLoaded(true)}
-                                onError={(e) => setEmbedError(e?.message || 'embed-error')}
-                            />
-                        ) : (
+                        {embedType === 'pdf' && renderPdf()}
+                        {embedType === 'office' && renderOffice()}
+                        {embedType === 'raw' && renderRaw()}
+
+                        {/* Mensaje si hubo error de incrustación */}
+                        {embedError && (
                             <div style={{ padding: 16, color: '#334155' }}>
                                 <strong>No se puede mostrar la vista previa embebida.</strong>
                                 <div style={{ marginTop: 6 }}>
                                     Usa el botón <em>“Abrir documento”</em> para verlo en una pestaña nueva.
                                 </div>
-                                {embedType && (
-                                    <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
-                                        Tipo: {embedType} · Error: {String(embedError || 'desconocido')}
-                                    </div>
-                                )}
+                                <div style={{ marginTop: 6, fontSize: 12, color: '#64748b' }}>
+                                    Tipo: {embedType || 'desconocido'} · Error: {String(embedError)}
+                                </div>
                             </div>
                         )}
                     </div>
@@ -188,15 +215,18 @@ export default function PolicyGate({
             {/* Aceptación */}
             {mustAcknowledge && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                    <input type="checkbox" checked={ack} onChange={(e) => setAck(e.target.checked)} />
+                    <input
+                        type="checkbox"
+                        checked={ack}
+                        onChange={(e) => setAck(e.target.checked)}
+                    />
                     <span>{labels.ackLabel || 'He leído y acepto la Política.'}</span>
                 </label>
             )}
 
-            {/* Estado informativo */}
+            {/* Estado */}
             <div style={{ fontSize: 13, color: '#64748b' }}>
-                {`Documento abierto: ${opened ? 'sí' : 'no'} · visor cargado: ${iframeLoaded ? 'sí' : 'no'
-                    } · scroll final: ${scrolledToEnd ? 'sí' : 'no'} · aceptación: ${ack ? 'sí' : 'no'}`}
+                {`Documento abierto: ${opened ? 'sí' : 'no'} · visor cargado: ${iframeLoaded ? 'sí' : 'no'} · scroll final: ${scrolledToEnd ? 'sí' : 'no'} · aceptación: ${ack ? 'sí' : 'no'}`}
             </div>
 
             {/* Toast */}
@@ -216,6 +246,7 @@ export default function PolicyGate({
                 }}
             >
                 <span aria-hidden="true" style={{ fontWeight: 700 }}>
+                    {ok ? '✓' : !scrolledToEnd ? '⚠' : '!'}
                     {ok ? '✓' : !scrolledToEnd ? '⚠' : '!'}
                 </span>
                 <span style={{ fontSize: 14 }}>{toast.text}</span>
