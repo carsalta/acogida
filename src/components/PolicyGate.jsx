@@ -9,12 +9,12 @@ import React, { useEffect, useRef, useState } from 'react';
  *  - mustScroll: boolean (default true)
  *  - mustAcknowledge: boolean (default true)
  *  - labels: { openDoc, mustRead, ackLabel, scrollHint, toastReady, toastNeedScroll, toastNeedAck }
- *  - onStatusChange: (ok: boolean) => void
+ *  - onStatusChange: (ok: boolean) => void  // ok = scrolledToEnd && ack
  *  - isKiosk?: boolean
  *
- * Lógica de habilitación:
- *  ok = scrolledToEnd && ack
- * (abrir en pestaña nueva es opcional; NO participa en la condición)
+ * Render de visor compatible:
+ *  - PDF → Google Viewer
+ *  - PPT/PPTX → Office Viewer
  */
 export default function PolicyGate({
     title,
@@ -28,15 +28,40 @@ export default function PolicyGate({
     const [scrolledToEnd, setScrolledToEnd] = useState(!mustScroll);
     const [ack, setAck] = useState(!mustAcknowledge);
     const [opened, setOpened] = useState(false);
+
     const containerRef = useRef(null);
 
-    // Notificación al padre: SOLO scroll final + aceptación
+    // URL del visor (evita bloqueos X-Frame-Options/CSP)
+    const [effectiveUrl, setEffectiveUrl] = useState(url || '');
+
+    useEffect(() => {
+        if (!url) return setEffectiveUrl('');
+        const lower = url.toLowerCase();
+        const isPdf = lower.endsWith('.pdf');
+        const isOffice = lower.endsWith('.ppt') || lower.endsWith('.pptx');
+
+        if (isPdf) {
+            setEffectiveUrl(
+                `https://drive.google.com/viewerng/viewer?embedded=true&url=${encodeURIComponent(url)}`
+            );
+            return;
+        }
+        if (isOffice) {
+            setEffectiveUrl(
+                `https://view.officeapps.live.com/op/embed.aspx?src=${encodeURIComponent(url)}`
+            );
+            return;
+        }
+        setEffectiveUrl(url);
+    }, [url]);
+
+    // Habilitación: SOLO scroll final + aceptación
     useEffect(() => {
         const ok = scrolledToEnd && ack;
         onStatusChange?.(ok);
     }, [scrolledToEnd, ack, onStatusChange]);
 
-    // Scroll detector
+    // Detectar scroll hasta el final en el contenedor
     const onScroll = () => {
         const el = containerRef.current;
         if (!el) return;
@@ -44,26 +69,26 @@ export default function PolicyGate({
         if (atBottom) setScrolledToEnd(true);
     };
 
-    const isPdf = url?.toLowerCase().endsWith('.pdf');
-    const isOffice = url?.toLowerCase().endsWith('.ppt') || url?.toLowerCase().endsWith('.pptx');
-
-    // ---- Toast computado ----
+    // Toast dinámico
     const ok = scrolledToEnd && ack;
     const toast = (() => {
         if (!scrolledToEnd) {
             return {
-                color: '#ef4444', bg: '#fee2e2',
+                color: '#ef4444',
+                bg: '#fee2e2',
                 text: labels.toastNeedScroll || 'Desplázate hasta el final del documento para continuar.'
             };
         }
         if (mustAcknowledge && !ack) {
             return {
-                color: '#b45309', bg: '#fef3c7',
+                color: '#b45309',
+                bg: '#fef3c7',
                 text: labels.toastNeedAck || 'Marca la casilla de aceptación para continuar.'
             };
         }
         return {
-            color: '#166534', bg: '#ecfdf5',
+            color: '#166534',
+            bg: '#ecfdf5',
             text: labels.toastReady || 'Política leída y aceptada. Puedes continuar.'
         };
     })();
@@ -72,12 +97,15 @@ export default function PolicyGate({
         <section className="card" style={{ display: 'grid', gap: 12 }}>
             <h3 style={{ fontSize: 18, fontWeight: 600 }}>{title}</h3>
 
-            {/* Abrir documento en pestaña nueva (OPCIONAL) */}
+            {/* Abrir en pestaña nueva (opcional) */}
             <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                 <button
                     type="button"
                     className="btn btn-outline"
-                    onClick={() => { window.open(url, '_blank', 'noopener,noreferrer'); setOpened(true); }}
+                    onClick={() => {
+                        window.open(url, '_blank', 'noopener,noreferrer');
+                        setOpened(true);
+                    }}
                 >
                     {labels.openDoc || 'Abrir documento'}
                 </button>
@@ -89,16 +117,18 @@ export default function PolicyGate({
             </div>
 
             {/* Visor embebido + scroll requerido */}
-            {(isPdf || isOffice) && (
+            {effectiveUrl && (
                 <>
                     <div style={{ fontSize: 13, color: '#64748b' }}>
-                        {labels.scrollHint || 'Desplázate hasta el final del documento para habilitar la aceptación.'}
+                        {labels.scrollHint ||
+                            'Desplázate hasta el final del documento para habilitar la aceptación.'}
                     </div>
                     <div
                         ref={containerRef}
                         onScroll={onScroll}
                         style={{
-                            border: '1px solid #e2e8f0', borderRadius: 8,
+                            border: '1px solid #e2e8f0',
+                            borderRadius: 8,
                             height: isKiosk ? '60vh' : 420,
                             overflow: 'auto',
                             background: '#fff'
@@ -106,7 +136,7 @@ export default function PolicyGate({
                     >
                         <iframe
                             title={title}
-                            src={url}
+                            src={effectiveUrl}
                             style={{ width: '100%', height: isKiosk ? '60vh' : 800, border: 0 }}
                             sandbox="allow-scripts allow-same-origin allow-forms allow-popups"
                         />
@@ -114,7 +144,7 @@ export default function PolicyGate({
                 </>
             )}
 
-            {/* Checkbox de aceptación */}
+            {/* Aceptación */}
             {mustAcknowledge && (
                 <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                     <input
@@ -128,10 +158,11 @@ export default function PolicyGate({
 
             {/* Estado informativo */}
             <div style={{ fontSize: 13, color: '#64748b' }}>
-                {`Documento abierto: ${opened ? 'sí' : 'no'} · scroll final: ${scrolledToEnd ? 'sí' : 'no'} · aceptación: ${ack ? 'sí' : 'no'}`}
+                {`Documento abierto: ${opened ? 'sí' : 'no'} · scroll final: ${scrolledToEnd ? 'sí' : 'no'
+                    } · aceptación: ${ack ? 'sí' : 'no'}`}
             </div>
 
-            {/* TOAST vivo (stick al bottom de la tarjeta) */}
+            {/* Toast */}
             <div
                 role="status"
                 aria-live="polite"
@@ -147,9 +178,8 @@ export default function PolicyGate({
                     gap: 8
                 }}
             >
-                {/* Icono simple */}
                 <span aria-hidden="true" style={{ fontWeight: 700 }}>
-                    {ok ? '✓' : (scrolledToEnd ? '!' : '⚠')}
+                    {ok ? '✓' : (!scrolledToEnd ? '⚠' : '!')}
                 </span>
                 <span style={{ fontSize: 14 }}>{toast.text}</span>
             </div>
