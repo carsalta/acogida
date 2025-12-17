@@ -1,4 +1,5 @@
 
+// src/lib/certificates.js
 import { jsPDF } from 'jspdf';
 import QRCode from 'qrcode';
 import { logEvent } from './analytics';
@@ -6,8 +7,9 @@ import { logEvent } from './analytics';
 /**
  * buildCertificate(options)
  * @param {object} options
- *  - lang, name, idDoc, company, type ('contrata'|'visita'), certId, issueDate, expiryDate, verifyUrl
- *  - logoUrl?: string  (opcional; si no se pasa, se omite el logo)
+ *  - lang, name, idDoc, company, type ('contrata'|'visita'),
+ *    certId, issueDate, expiryDate, verifyUrl
+ *  - logoUrl?: string  // URL pública (p.ej. BASE_URL + 'brand/logo-global.png')
  */
 export async function buildCertificate({
     lang,
@@ -22,20 +24,19 @@ export async function buildCertificate({
     logoUrl
 }) {
     const doc = new jsPDF({ unit: 'pt', format: 'a4' });
-
-    // Dimensiones de página (pt) y margen
-    const pageW = doc.internal.pageSize.getWidth();   // ~595 pt en A4 vertical
+    const pageW = doc.internal.pageSize.getWidth();
     const margin = 40;
 
-    // ===== 1) Logo arriba a la DERECHA (pequeño) =====
-    const logoW = 100; // ancho pequeño
-    const logoH = 45;  // alto proporcional aproximado
-    const logoX = pageW - margin - logoW; // derecha con margen
-    const logoY = margin;                 // arriba con margen
+    // ===== 1) Logo arriba DERECHA (pequeño) =====
+    const logoW = 100;
+    const logoH = 45;
+    const logoX = pageW - margin - logoW;
+    const logoY = margin;
 
     if (logoUrl) {
         try {
-            const res = await fetch(logoUrl, { cache: 'no-store' });
+            // Evita caché del SW/navegador
+            const res = await fetch(`${logoUrl}?v=${Date.now()}`, { cache: 'no-store' });
             const blob = await res.blob();
             const dataUrl = await new Promise((resolve) => {
                 const reader = new FileReader();
@@ -43,12 +44,15 @@ export async function buildCertificate({
                 reader.readAsDataURL(blob);
             });
             doc.addImage(dataUrl, 'PNG', logoX, logoY, logoW, logoH);
-        } catch {
-            // si falla, continuamos sin logo
+            console.log('[buildCertificate] Logo añadido:', logoUrl);
+        } catch (err) {
+            console.warn('[buildCertificate] No se pudo cargar el logo:', logoUrl, err);
         }
+    } else {
+        console.warn('[buildCertificate] Sin logoUrl; se emitirá sin logo.');
     }
 
-    // ===== 2) Título dinámico según tipo =====
+    // ===== 2) Título según el tipo =====
     const titleES =
         type === 'contrata'
             ? 'Certificado Video Acogida Empresas Externas'
@@ -59,13 +63,13 @@ export async function buildCertificate({
             : 'Induction Certificate for Visitors';
     const title = lang === 'es' ? titleES : titleEN;
 
-    // Título arriba a la izquierda
     doc.setFontSize(18);
+    // Lo dejamos arriba izquierda; el logo queda a la derecha
     doc.text(title, margin, 60);
 
-    // ===== 3) Datos (tu layout original, ajustando Y base) =====
+    // ===== 3) Datos =====
     doc.setFontSize(12);
-    const baseY = 100; // suficiente separación respecto al título
+    const baseY = 100;
     doc.text(`${lang === 'es' ? 'Nombre' : 'Name'}: ${name}`, margin, baseY);
     doc.text(`${lang === 'es' ? 'Documento' : 'ID'}: ${idDoc}`, margin, baseY + 20);
     doc.text(`${lang === 'es' ? 'Empresa' : 'Company'}: ${company}`, margin, baseY + 40);
@@ -80,6 +84,7 @@ export async function buildCertificate({
     doc.setFontSize(10);
     doc.text(verifyUrl, margin, baseY + 310, { maxWidth: 500 });
 
+
     // ===== 5) Pie =====
     doc.setDrawColor(200);
     doc.line(margin, 760, pageW - margin, 760);
@@ -88,10 +93,9 @@ export async function buildCertificate({
         lang === 'es'
             ? 'Escanea el QR o visita el enlace para verificar el estado'
             : 'Scan the QR or visit the link to verify status',
-        margin, 780
+        margin,
+        780
     );
 
     logEvent('cert_issued', { type });
-    return doc.output('blob');
-
 }
