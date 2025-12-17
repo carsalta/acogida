@@ -1,22 +1,35 @@
-
+﻿
+// src/components/Quiz.jsx
 import React, { useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics';
 
+/**
+ * Quiz
+ * Props:
+ *  - items: Array<{ id, text, options: string[], correct: number }>
+ *  - checkLabel: string (texto del botón de enviar)
+ *  - wrongLabel: string (mensaje al fallar)
+ *  - retryLabel: string (texto del botón de finalizar y reintentar)
+ *  - onPass: () => Promise<void> | void  (se llama cuando todo está correcto)
+ *  - onRetry?: () => void
+ */
 export default function Quiz({
     items = [],
     checkLabel = 'Comprobar y finalizar',
     wrongLabel = 'Respuesta incorrecta. Revisa y corrige.',
+    retryLabel = 'Finalizar y nuevo intento',
     onPass,
-    onRetry,
-    retryLabel = 'Finalizar y nuevo intento'
+    onRetry
 }) {
     const [answers, setAnswers] = useState({});
-    const [formError, setFormError] = useState(null);   // mensaje global
-    const [wrongIds, setWrongIds] = useState([]);       // ids de preguntas incorrectas
-    const qRefs = useRef({});                           // refs por pregunta para hacer scroll
+    const [formError, setFormError] = useState(null);
+    const [wrongIds, setWrongIds] = useState([]);
+    const [submitting, setSubmitting] = useState(false); // ⬅️ nuevo
+    const qRefs = useRef({});
 
     const onSubmit = (e) => {
         e.preventDefault();
+        if (submitting) return; // ⬅️ freno de doble clic
 
         const wrong = [];
         for (const q of items) {
@@ -33,9 +46,7 @@ export default function Quiz({
 
             // Scroll a la primera incorrecta
             const firstWrongRef = qRefs.current[wrong[0]];
-            if (firstWrongRef && firstWrongRef.scrollIntoView) {
-                firstWrongRef.scrollIntoView({ behavior: 'smooth', block: 'center' });
-            }
+            firstWrongRef?.scrollIntoView?.({ behavior: 'smooth', block: 'center' });
             return;
         }
 
@@ -43,31 +54,34 @@ export default function Quiz({
         setWrongIds([]);
         setFormError(null);
         logEvent('quiz_pass', {});
-        onPass && onPass();
+        if (onPass) {
+            setSubmitting(true);
+            Promise.resolve(onPass())
+                .catch(() => { /* opcional: mostrar toast de error */ })
+                .finally(() => setSubmitting(false));
+        }
     };
 
+
     const onChangeAnswer = (qid, val) => {
-        // IMPORTANTE: usar clave computada [qid]
+        // Guardar respuesta usando la clave correcta [qid]
         setAnswers((prev) => ({ ...prev, [qid]: Number(val) }));
-        // Si esta pregunta estaba marcada como incorrecta, limpiarla al cambiar respuesta
+        // Si estaba marcada incorrecta, limpiar
         setWrongIds((prev) => prev.filter((id) => id !== qid));
     };
 
+
     return (
-        <form style={{ display: 'grid', gap: 20 }} onSubmit={onSubmit}>
+        <form className="grid" style={{ display: 'grid', gap: 12 }} onSubmit={onSubmit}>
             {items.map((q, idx) => {
                 const isWrong = wrongIds.includes(q.id);
-
                 const fieldsetStyle = {
                     border: '1px solid #e2e8f0',
                     borderRadius: 8,
                     padding: 16,
                     background: '#fff',
-                    ...(isWrong
-                        ? { borderColor: '#ef4444', background: '#fef2f2' }
-                        : null)
+                    ...(isWrong ? { borderColor: '#ef4444', background: '#fef2f2' } : null)
                 };
-
                 const legendStyle = { fontWeight: 600, color: isWrong ? '#b91c1c' : '#0f172a' };
 
                 return (
@@ -87,9 +101,9 @@ export default function Quiz({
                                 <label key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                                     <input
                                         type="radio"
-                                        name={q.id}
+                                        name={`q_${q.id}`}
                                         value={i}
-                                        checked={String(answers[q.id]) === String(i)}
+                                        checked={answers[q.id] === i}
                                         onChange={(e) => onChangeAnswer(q.id, e.target.value)}
                                     />
                                     <span>{opt}</span>
@@ -98,10 +112,7 @@ export default function Quiz({
                         </div>
 
                         {isWrong && (
-                            <div
-                                role="alert"
-                                style={{ marginTop: 10, fontSize: 14, color: '#b91c1c' }}
-                            >
+                            <div style={{ marginTop: 8, fontSize: 13, color: '#b91c1c' }}>
                                 {wrongLabel}
                             </div>
                         )}
@@ -110,17 +121,33 @@ export default function Quiz({
             })}
 
             {formError && (
-                <p style={{ color: '#b91c1c' }}>
+                <div
+                    role="alert"
+                    style={{
+                        border: '1px solid #fca5a5',
+                        background: '#fee2e2',
+                        color: '#b91c1c',
+                        borderRadius: 8,
+                        padding: '10px 12px',
+                        fontSize: 14
+                    }}
+                >
                     {formError}
-                </p>
+                </div>
             )}
 
-            <div style={{ display: 'flex', gap: 12 }}>
-                {/* OJO: className bien escrito y sin llaves extra */}
-                <button className="btn" type="submit">{checkLabel}</button>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                <button className="btn" type="submit" disabled={submitting}>
+                    {submitting ? 'Generando…' : checkLabel}
+                </button>
 
                 {formError && onRetry && (
-                    <button className="btn btn-outline" type="button" onClick={onRetry}>
+                    <button
+                        type="button"
+                        className="btn btn-outline"
+                        onClick={onRetry}
+                        disabled={submitting}
+                    >
                         {retryLabel}
                     </button>
                 )}

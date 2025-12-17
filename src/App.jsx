@@ -69,18 +69,21 @@ export default function App() {
     const [route, setRoute] = useState('home');
     const [type, setType] = useState(null);
     const [participant, setParticipant] = useState(
-        () => JSON.parse(localStorage.getItem('participant') || '{}')
+        () => JSON.parse(localStorage.getItem('participant') ?? '{}')
     );
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
+    const [generating, setGenerating] = useState(false); // ⬅️ NUEVO: freno a dobles ejecuciones
+
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
-    // Estado de la pasarela de política
+    // Estado pasarela de política
     const [policyOk, setPolicyOk] = useState(false);
 
     // Exención: registro previo válido
     const [existingRecord, setExistingRecord] = useState(null);
 
+    // Inicialización por querystring
     useEffect(() => {
         const p = new URLSearchParams(location.search);
         if (p.get('lang')) setLang(p.get('lang'));
@@ -107,24 +110,25 @@ export default function App() {
     }, [cfg, site]);
 
     const c = useMemo(() => getContent(lang), [lang]);
+
     const steps =
-        lang === 'es'
-            ? stepsES
-            : lang === 'en'
-                ? stepsEN
-                : lang === 'fr'
-                    ? stepsFR
-                    : lang === 'de'
-                        ? stepsDE
-                        : stepsPT;
+        lang === 'es' ? stepsES :
+            lang === 'en' ? stepsEN :
+                lang === 'fr' ? stepsFR :
+                    lang === 'de' ? stepsDE : stepsPT;
+
     const current =
-        route === 'home' ? 0 : route === 'form' ? 0 : route === 'video' ? 1 : route === 'quiz' ? 2 : 3;
+        route === 'home' ? 0 :
+            route === 'form' ? 0 :
+                route === 'video' ? 1 :
+                    route === 'quiz' ? 2 : 3;
 
     // BRANDING activo: site.brand > global.brand
     const brand = useMemo(
         () => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand ?? null),
         [cfg, site]
     );
+
     useEffect(() => {
         if (brand?.primary) {
             document.documentElement.style.setProperty('--brand', brand.primary);
@@ -139,10 +143,8 @@ export default function App() {
 
     // Descargar certificado por exención (si el registro es válido)
     async function downloadExistingCertificate(record) {
-        const id = record?.certId || uuidv4();
+        const id = record?.certId ?? uuidv4();
         const issue = record?.issueISO ? new Date(record.issueISO) : new Date();
-
-        // Por defecto, 36 meses (3 años) si no hay expiry en el registro remoto
         const expiry =
             record?.expiryISO
                 ? new Date(record.expiryISO)
@@ -153,17 +155,17 @@ export default function App() {
                 })();
 
         const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
+
         const blob = await buildCertificate({
             lang,
-            name: participant?.name || record?.name || '',
-            idDoc: participant?.idDoc || record?.dni || '',
-            company: participant?.company || record?.company || '',
-            type: type || record?.type || '',
+            name: participant?.name ?? record?.name ?? '',
+            idDoc: participant?.idDoc ?? record?.dni ?? '',
+            company: participant?.company ?? record?.company ?? '',
+            type: type ?? record?.type ?? '',
             certId: id,
             issueDate: issue.toLocaleDateString(lang),
             expiryDate: expiry.toLocaleDateString(lang),
             verifyUrl,
-            // Logo para el PDF
             logoUrl: CERT_LOGO_URL
         });
 
@@ -175,33 +177,28 @@ export default function App() {
         a.click();
         URL.revokeObjectURL(url);
 
-        // Envío por email (si está activado)
+        // Email en segundo plano (si está habilitado)
         try {
             if (cfg?.mail?.enabled) {
                 const b64 = await blobToBase64(blob);
                 const subj =
-                    lang === 'es'
-                        ? 'Certificado de Inducción'
-                        : lang === 'pt'
-                            ? 'Certificado de Instruções de Segurança'
-                            : lang === 'fr'
-                                ? 'Certificat de Sécurité'
-                                : lang === 'de'
-                                    ? 'Sicherheitszertifikat'
-                                    : 'Induction Certificate';
+                    lang === 'es' ? 'Certificado de Inducción' :
+                        lang === 'pt' ? 'Certificado de Instruções de Segurança' :
+                            lang === 'fr' ? 'Certificat de Sécurité' :
+                                lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
                 const html = `<p>${lang === 'es'
                         ? 'Adjuntamos su certificado de inducción.'
                         : 'Please find attached your induction certificate.'
                     }</p>`;
-                await sendMail({
+                sendMail({
                     apiBase: cfg?.mail?.apiBase,
                     apiKey: cfg?.mail?.apiKey,
-                    to: participant?.email || record?.email,
+                    to: participant?.email ?? record?.email,
                     cc: cfg?.mail?.cc ?? [],
                     subject: subj,
                     html,
                     attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
-                });
+                }).catch(() => { });
             }
         } catch (e) {
             console.error('sendMail (exemption) error', e);
@@ -237,7 +234,7 @@ export default function App() {
             return;
         }
 
-        // Guardamos datos en estado y local
+        // Guardar datos
         setParticipant(data);
         localStorage.setItem('participant', JSON.stringify(data));
 
@@ -245,7 +242,6 @@ export default function App() {
         const validityMonths = cfg?.registry?.months ?? 36;
         const apiBase = cfg?.registry?.apiBase;
         const apiKey = cfg?.registry?.apiKey;
-
         try {
             if (apiBase) {
                 const r = await checkRemote({
@@ -257,7 +253,7 @@ export default function App() {
                 });
                 if (r?.found && r?.isValid) {
                     setExistingRecord(r.record);
-                    return; // el usuario decide: descargar / continuar / cambiar datos
+                    return; // el usuario decide descargar / continuar / cambiar datos
                 }
             }
         } catch (err) {
@@ -269,109 +265,110 @@ export default function App() {
 
     const onVideoFinished = () => setRoute('quiz');
 
+    // NUEVO: descarga inmediata, mail/registro en background y freno contra doble ejecución
     const onQuizPassed = async () => {
-        const id = uuidv4();
-        const issue = new Date();
-
-        // 36 meses (3 años) para ambos tipos
-        const expiry = new Date(issue);
-        expiry.setMonth(expiry.getMonth() + 36);
-
-        const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
-        const certs = JSON.parse(localStorage.getItem('certs') || '[]');
-        certs.push({ id, expiry: expiry.toISOString() });
-        localStorage.setItem('certs', JSON.stringify(certs));
-
-        const blob = await buildCertificate({
-            lang,
-            name: participant.name,
-            idDoc: participant.idDoc,
-            company: participant.company,
-            type,
-            certId: id,
-            issueDate: issue.toLocaleDateString(lang),
-            expiryDate: expiry.toLocaleDateString(lang),
-            verifyUrl,
-            // Logo para el PDF
-            logoUrl: CERT_LOGO_URL
-        });
-
-        // Envío por email (si está activado)
+        if (generating) return;        // evita dobles ejecuciones por doble clic
+        setGenerating(true);
         try {
-            if (cfg?.mail?.enabled) {
-                const b64 = await blobToBase64(blob);
-                const subj =
-                    lang === 'es'
-                        ? 'Certificado de Inducción'
-                        : lang === 'pt'
-                            ? 'Certificado de Instruções de Segurança'
-                            : lang === 'fr'
-                                ? 'Certificat de Sécurité'
-                                : lang === 'de'
-                                    ? 'Sicherheitszertifikat'
-                                    : 'Induction Certificate';
-                const html = `<p>${lang === 'es'
-                        ? 'Adjuntamos su certificado de inducción.'
-                        : 'Please find attached your induction certificate.'
-                    }</p>`;
-                await sendMail({
-                    apiBase: cfg?.mail?.apiBase,
-                    apiKey: cfg?.mail?.apiKey,
-                    to: participant.email,
-                    cc: cfg?.mail?.cc ?? [],
-                    subject: subj,
-                    html,
-                    attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
-                });
+            const id = uuidv4();
+            const issue = new Date();
+            const expiry = new Date(issue);
+            expiry.setMonth(expiry.getMonth() + 36);
+
+            const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
+
+            // Persistencia de vigencia local
+            const certs = JSON.parse(localStorage.getItem('certs') ?? '[]');
+            certs.push({ id, expiry: expiry.toISOString() });
+            localStorage.setItem('certs', JSON.stringify(certs));
+
+            // Generar PDF (simple y rápido)
+            const blob = await buildCertificate({
+                lang,
+                name: participant.name,
+                idDoc: participant.idDoc,
+                company: participant.company,
+                type,
+                certId: id,
+                issueDate: issue.toLocaleDateString(lang),
+                expiryDate: expiry.toLocaleDateString(lang),
+                verifyUrl,
+                logoUrl: CERT_LOGO_URL
+            });
+
+            // Descarga INMEDIATA
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `certificado-${id}.pdf`;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            // Email + upsert remoto EN SEGUNDO PLANO (no bloquea la UX)
+            try {
+                if (cfg?.mail?.enabled) {
+                    blobToBase64(blob)
+                        .then((b64) => {
+                            const subj =
+                                lang === 'es' ? 'Certificado de Inducción' :
+                                    lang === 'pt' ? 'Certificado de Instruções de Segurança' :
+                                        lang === 'fr' ? 'Certificat de Sécurité' :
+                                            lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
+                            const html = `<p>${lang === 'es'
+                                    ? 'Adjuntamos su certificado de inducción.'
+                                    : 'Please find attached your induction certificate.'
+                                }</p>`;
+                            return sendMail({
+                                apiBase: cfg?.mail?.apiBase,
+                                apiKey: cfg?.mail?.apiKey,
+                                to: participant.email,
+                                cc: cfg?.mail?.cc ?? [],
+                                subject: subj,
+                                html,
+                                attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
+                            });
+                        })
+                        .catch((e) => console.error('sendMail error', e));
+                }
+
+                if (cfg?.registry?.apiBase) {
+                    upsertRemote({
+                        apiBase: cfg.registry.apiBase,
+                        payload: {
+                            apiKey: cfg?.registry?.apiKey ?? '',
+                            dni: participant.idDoc,
+                            email: participant.email,
+                            name: participant.name,
+                            company: participant.company,
+                            site,
+                            type,
+                            certId: id,
+                            issueDate: issue.toISOString(),
+                            expiryDate: expiry.toISOString()
+                        }
+                    }).catch((e) => console.error('upsertRemote error', e));
+                }
+            } catch (err) {
+                console.error(err);
             }
-        } catch (e) {
-            console.error('sendMail error', e);
+
+            setRoute('done');
+        } finally {
+            setGenerating(false);
         }
-
-        // Upsert remoto antes de finalizar
-        try {
-            if (cfg?.registry?.apiBase) {
-                await upsertRemote({
-                    apiBase: cfg.registry.apiBase,
-                    payload: {
-                        apiKey: cfg?.registry?.apiKey ?? '',
-                        dni: participant.idDoc,
-                        email: participant.email,
-                        name: participant.name,
-                        company: participant.company,
-                        site,
-                        type,
-                        certId: id,
-                        issueDate: issue.toISOString(),
-                        expiryDate: expiry.toISOString()
-                    }
-                });
-            }
-        } catch (err) {
-            console.error('upsertRemote error', err);
-        }
-
-        // Descarga del PDF generado
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `certificado-${id}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-
-        setRoute('done');
     };
 
     if (!cfg) return <div style={{ padding: 24 }}>Cargando configuración…</div>;
 
     const siteCfg = site ? cfg.sites?.[site] : null;
+
     const srcCfg = type ? (siteCfg?.videos?.[type]?.[lang] ?? cfg?.videos?.[type]?.[lang]) : '';
     const srcFbk = type ? fallbackVideos?.[type]?.[lang] : '';
     const videoUrl = srcCfg ?? srcFbk ?? '';
     const subTracks = tracks(type, lang, enabledLangs);
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
 
-    // Datos de política (sitio > global), canalizados a PolicyGate
+    // Datos de política (sitio > global) para PolicyGate
     const policyCfg = siteCfg?.policy ?? cfg?.policy;
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
@@ -456,6 +453,7 @@ export default function App() {
                             {c.visitBtn}
                         </button>
                     </section>
+
                     <section className="card">
                         <span className="badge">{c.contractorBadge}</span>
                         <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.contractorTitle}</h3>
@@ -481,26 +479,12 @@ export default function App() {
                                     : 'We found a valid record. You can download the certificate directly or continue anyway.'}
                             </p>
                             <div style={{ display: 'grid', gap: 6, fontSize: 14, color: '#047857' }}>
-                                <span>
-                                    <strong>DNI:</strong> {existingRecord.dni || '—'}
-                                </span>
-                                <span>
-                                    <strong>Email:</strong> {existingRecord.email || '—'}
-                                </span>
-                                <span>
-                                    <strong>Nombre:</strong> {existingRecord.name || '—'}
-                                </span>
-                                <span>
-                                    <strong>Empresa:</strong> {existingRecord.company || '—'}
-                                </span>
-                                <span>
-                                    <strong>Emitido:</strong>{' '}
-                                    {existingRecord.issueISO ? new Date(existingRecord.issueISO).toLocaleDateString(lang) : '—'}
-                                </span>
-                                <span>
-                                    <strong>Caducidad:</strong>{' '}
-                                    {existingRecord.expiryISO ? new Date(existingRecord.expiryISO).toLocaleDateString(lang) : '—'}
-                                </span>
+                                <span><strong>DNI:</strong> {existingRecord.dni ?? '—'}</span>
+                                <span><strong>Email:</strong> {existingRecord.email ?? '—'}</span>
+                                <span><strong>Nombre:</strong> {existingRecord.name ?? '—'}</span>
+                                <span><strong>Empresa:</strong> {existingRecord.company ?? '—'}</span>
+                                <span><strong>Emitido:</strong> {existingRecord.issueISO ? new Date(existingRecord.issueISO).toLocaleDateString(lang) : '—'}</span>
+                                <span><strong>Caducidad:</strong> {existingRecord.expiryISO ? new Date(existingRecord.expiryISO).toLocaleDateString(lang) : '—'}</span>
                             </div>
                             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
                                 <button className="btn" onClick={() => downloadExistingCertificate(existingRecord)}>
@@ -540,7 +524,7 @@ export default function App() {
                             >
                                 ← {lang === 'es' ? 'Volver' : 'Back'}
                             </button>
-                            <span></span>
+                            <span />
                             <span>{c.startVideo}</span>
                         </div>
 
@@ -553,6 +537,7 @@ export default function App() {
                                 required
                             />
                         </Field>
+
                         <Field label={c.fields.id}>
                             <input
                                 name="idDoc"
@@ -562,6 +547,7 @@ export default function App() {
                                 required
                             />
                         </Field>
+
                         <Field label={c.fields.company}>
                             <input
                                 name="company"
@@ -571,6 +557,7 @@ export default function App() {
                                 required
                             />
                         </Field>
+
                         <Field label={c.fields.email}>
                             <input
                                 type="email"
