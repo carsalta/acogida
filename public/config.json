@@ -1,0 +1,72 @@
+{
+    "defaultLang": "es",
+    "enabledLangs": [
+        "es",
+        "en"
+    ],
+    "allowSeek": false,
+    "allowSubtitles": true,
+    "adminCode": "Secur_2025?",
+    "brand": {
+        "name": "Danone",
+        "primary": "#0ea5e9",
+        "logo": "brand/logo-global.png"
+    },
+    "mail": {
+        "enabled": false,
+        "apiBase": "",
+        "apiKey": "",
+        "cc": []
+    },
+    "videos": {
+        "visita": {
+            "es": "https://www.youtube.com/embed/LUti0D4melI",
+            "en": "https://www.youtube.com/embed/sq4RpiFyxfI",
+            "fr": "videos/fr/visita.mp4",
+            "de": "videos/de/visita.mp4",
+            "pt": "videos/pt/visita.mp4",
+            "minutes": 6
+        },
+        "contrata": {
+            "es": "https://www.youtube.com/embed/SlbANB1e6W4",
+            "en": "https://www.youtube.com/embed/5c0lHewLp3g",
+            "fr": "videos/fr/contrata.mp4",
+            "de": "videos/de/contrata.mp4",
+            "pt": "videos/pt/contrata.mp4",
+            "minutes": 15
+        }
+    },
+    "policy": {
+        "title": {
+            "es": "Política y Compromiso de Calidad y Seguridad Alimentaria",
+            "en": "Quality & Food Safety Policy and Commitment"
+        },
+        "url": "assets/policy/policy_food_safety_aldaia.pdf",
+        "mustScroll": true,
+        "mustAcknowledge": true
+    },
+    "registry": {
+        "apiBase": "https://script.google.com/macros/s/AKfycbx_-UlamfUIh3NhL7Cr0zPLRijorSZTJ029WGf6UPnVV02Ux93fyMbj44GK99dpq94U/exec",
+        "months": 36,
+        "apiKey": ""
+    },
+    "sites": {
+        "Aldaya": {
+            "brand": {
+                "name": "Aldaya",
+                "primary": "#0ea5e9",
+                "logo": "brand/logo-global.png"
+            },
+            "videos": {
+                "visita": {
+                    "es": "https://www.youtube.com/embed/LUti0D4melI",
+                    "en": "https://www.youtube.com/embed/sq4RpiFyxfI"
+                },
+                "contrata": {
+                    "es": "https://www.youtube.com/embed/SlbANB1e6W4",
+                    "en": "https://www.youtube.com/embed/5c0lHewLp3g"
+                }
+            }
+        }
+    }
+}

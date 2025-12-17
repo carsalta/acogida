@@ -1,0 +1,30 @@
+# Node / Vite
+node_modules/
+dist/
+.cache/
+.vite/
+*.log
+
+# SO
+.DS_Store
+Thumbs.db
+
+# Env
+.env
+.env.*
+
+postcss.config.js
+tailwind.config.js
+
+node_modules/
+dist/
+build/
+
+node_modules/
+dist/
+build/
+
+node_modules/
+dist/
+build/
+node_modules/

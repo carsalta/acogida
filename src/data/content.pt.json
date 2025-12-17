@@ -1,0 +1,41 @@
+{
+  "title": "Instruções de Segurança",
+  "visitBadge": "Visitantes",
+  "visitTitle": "Sou VISITANTE (6 min)",
+  "visitDesc": "Orientações essenciais de segurança antes da chegada.",
+  "visitBtn": "Começar como VISITANTE",
+  "contractorBadge": "Contratados",
+  "contractorTitle": "Sou CONTRATADO (15 min)",
+  "contractorDesc": "Integração obrigatória para pessoal externo.",
+  "contractorBtn": "Começar como CONTRATADO",
+  "fields": {
+    "name": "Nome completo",
+    "id": "ID/Passaporte",
+    "company": "Empresa",
+    "email": "Email"
+  },
+  "startVideo": "Iniciar vídeo",
+  "videoTitle": {
+    "visita": "Vídeo para Visitantes",
+    "contrata": "Vídeo para Contratados"
+  },
+  "mustWatch": "Você deve assistir ao vídeo completo para continuar.",
+  "quizTitle": "Questionário",
+  "checkBtn": "Verificar e finalizar",
+  "wrong": "Resposta incorreta. Por favor, corrija.",
+  "done": "Concluído! Certificado gerado e baixado.",
+  "verifyHint": "Escaneie o QR do PDF para verificar o status.",
+  "newStart": "Nova tentativa",
+  "finish": "Finalizar",
+  "finishAndRetry": "Finalizar e nova tentativa",
+  "verifyPage": {
+    "checking": "Verificando…",
+    "valid": "✓ Certificado válido",
+    "expired": "⚠ Certificado expirado",
+    "notfound": "✖ Não encontrado"
+  },
+  "questions": {
+    "visita": [],
+    "contrata": []
+  }
+}
