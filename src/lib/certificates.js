@@ -5,9 +5,10 @@ import QRCode from 'qrcode';
 import { logEvent } from './analytics';
 
 /**
- * Certificado estilo original, sin cabecera.
- * - Logo con tamaño fijo (rápido y sin cálculos).
- * - Datos ordenados y QR optimizado.
+ * Certificado estilo original (sin cabecera).
+ * - Logo proporcional arriba-derecha (dentro de 110×50 pt).
+ * - Datos en dos columnas como tu versión inicial.
+ * - QR optimizado para rapidez.
  */
 export async function buildCertificate({
     lang,
@@ -21,27 +22,26 @@ export async function buildCertificate({
     verifyUrl,
     logoUrl
 }) {
-    const doc = new jsPDF({ unit: 'pt', format: 'a4', compress: true });
+    const doc = new jsPDF({ unit: 'pt', format: 'a4' });
 
-    // Página y espaciado
+    // Dimensiones y márgenes
     const pageW = doc.internal.pageSize.getWidth();   // ~595 pt
     const pageH = doc.internal.pageSize.getHeight();  // ~842 pt
-    const M = 40;       // margen exterior
-    const LINE = 20;    // altura de línea base
+    const M = 40;                                     // margen exterior
 
-    // ===== 1) Logo ARRIBA-DERECHA (tamaño fijo, sin cálculos) =====
-    // Ajusta estos dos si lo quieres un poco más pequeño/grande.
-    const LOGO_W = 100;   // pt (~35 mm)
-    const LOGO_H = 45;    // pt (~16 mm)
-    const logoX = pageW - M - LOGO_W;
+    // ===== 1) Logo arriba-derecha (proporcional, SIN deformar) =====
+    const LOGO_MAX_W = 110;   // ancho máx. en pt (~39 mm)
+    const LOGO_MAX_H = 50;    // alto máx. en pt (~18 mm)
+    const logoX = pageW - M - LOGO_MAX_W;
     const logoY = M;
 
     if (logoUrl) {
         try {
-            const dataUrl = await toDataUrl(logoUrl); // carga rápida del PNG
-            doc.addImage(dataUrl, 'PNG', logoX, logoY, LOGO_W, LOGO_H);
+            const dataUrl = await toDataUrl(logoUrl);
+            const { wPt, hPt } = await scaledPtSize(dataUrl, LOGO_MAX_W, LOGO_MAX_H);
+            doc.addImage(dataUrl, 'PNG', logoX, logoY, wPt, hPt);
         } catch {
-            /* si falla el logo, seguimos sin él */
+            /* si falla, continuamos sin logo */
         }
     }
 
@@ -59,42 +59,40 @@ export async function buildCertificate({
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(18);
     doc.setTextColor(17, 24, 39);
-    doc.text(title, M, M + 30); // bien separado del logo
+    doc.text(title, M, M + 30);
 
-    // ===== 3) Datos (espaciado limpio, sin montarse) =====
-    doc.setFont('helvetica', 'normal');   // ← CORRECTO (no duplicar llamadas)
+    // ===== 3) Datos (layout original) =====
+    doc.setFont('helvetica', 'normal');
     doc.setFontSize(12);
     doc.setTextColor(15, 23, 42);
 
-    let y = M + 70; // base bajo título
-    doc.text(`${lang === 'es' ? 'Nombre' : 'Name'}: ${name}`, M, y); y += LINE;
-    doc.text(`${lang === 'es' ? 'Documento' : 'ID'}: ${idDoc}`, M, y); y += LINE;
-    doc.text(`${lang === 'es' ? 'Empresa' : 'Company'}: ${company}`, M, y); y += LINE;
-    doc.text(`${lang === 'es' ? 'Tipo' : 'Type'}: ${type}`, M, y);
+    const baseY = M + 70; // separación limpia bajo el título
+    doc.text(`${lang === 'es' ? 'Nombre' : 'Name'}: ${name}`, M, baseY);
+    doc.text(`${lang === 'es' ? 'Documento' : 'ID'}: ${idDoc}`, M, baseY + 20);
+    doc.text(`${lang === 'es' ? 'Empresa' : 'Company'}: ${company}`, M, baseY + 40);
+    doc.text(`${lang === 'es' ? 'Tipo' : 'Type'}: ${type}`, M, baseY + 60);
 
-    // Columna derecha (fechas e ID), como tenías
-    doc.text(`${lang === 'es' ? 'Emitido' : 'Issued'}: ${issueDate}`, pageW / 2, M + 70);
-    doc.text(`${lang === 'es' ? 'Caducidad' : 'Expiry'}: ${expiryDate}`, pageW / 2, M + 90);
-    doc.text(`ID: ${certId}`, pageW / 2, M + 110);
+    doc.text(`${lang === 'es' ? 'Emitido' : 'Issued'}: ${issueDate}`, pageW / 2, baseY);
+    doc.text(`${lang === 'es' ? 'Caducidad' : 'Expiry'}: ${expiryDate}`, pageW / 2, baseY + 20);
+    doc.text(`ID: ${certId}`, pageW / 2, baseY + 40);
 
-    // ===== 4) QR + URL (rápido) =====
-    const qrY = y + 20;
+    // ===== 4) QR + enlace =====
+    const QR_Y = baseY + 80;
     const QR_SIZE = 150; // pt (~53 mm)
     const qr = await QRCode.toDataURL(verifyUrl, {
         errorCorrectionLevel: 'M',
         margin: 1,
-        scale: 4 // más rápido que 5/6 (y suficiente nitidez)
+        scale: 4 // más rápido que 5/6, nitidez suficiente
     });
-    doc.addImage(qr, 'PNG', M, qrY, QR_SIZE, QR_SIZE);
+    doc.addImage(qr, 'PNG', M, QR_Y, QR_SIZE, QR_SIZE);
 
-    doc.setFont('helvetica', 'bold'); doc.setFontSize(11); doc.setTextColor(51, 65, 85);
-    doc.text(lang === 'es' ? 'Verificación:' : 'Verification:', M + QR_SIZE + 16, qrY + 2);
-
-    doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(51, 65, 85);
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(10);
+    doc.setTextColor(51, 65, 85);
     doc.text(
         doc.splitTextToSize(verifyUrl, pageW - (M + QR_SIZE + 16) - M),
         M + QR_SIZE + 16,
-        qrY + 18
+        QR_Y + 18
     );
 
     // ===== 5) Pie =====
@@ -113,7 +111,9 @@ export async function buildCertificate({
     return doc.output('blob');
 }
 
-/* === Helper simple para cargar el PNG del/* === Helper simple para cargar el PNG del logo === */
+/* =================== helpers =================== */
+
+/** Carga una URL (misma-origen o pública) a dataURL */
 async function toDataUrl(url) {
     const res = await fetch(url, { cache: 'no-store' });
     const blob = await res.blob();
@@ -121,5 +121,21 @@ async function toDataUrl(url) {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result);
         reader.readAsDataURL(blob);
+    });
+}
+
+/** Devuelve tamaño en pt manteniendo proporción dentro de [maxWpt, maxHpt] */
+function scaledPtSize(dataUrl, maxWpt, maxHpt) {
+    return new Promise((resolve) => {
+        const img = new Image();
+        img.onload = () => {
+            // jsPDF usa 72 dpi -> 1 px ≈ 0.75 pt
+            const px2pt = 0.75;
+            const wPt = img.width * px2pt;
+            const hPt = img.height * px2pt;
+            const scale = Math.min(maxWpt / wPt, maxHpt / hPt, 1);
+            resolve({ wPt: wPt * scale, hPt: hPt * scale });
+        };
+        img.src = dataUrl;
     });
 }
