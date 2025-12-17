@@ -27,8 +27,8 @@ export async function buildCertificate({
     const M = 40;                                  // margen exterior
     const LINE = 20;                                  // altura de línea
 
-    // ===== 1) Logo arriba-derecha (PROPORCIONAL, SIN deformar) =====
-    // Marco máximo recomendado para el logo corporativo (ajusta si lo deseas):
+    // ===== 1) Logo arriba-derecha (PROPORCIONAL, sin deformar) =====
+    // Marco máximo para el logo horizontal (ajusta si lo deseas).
     const LOGO_MAX_W = 110;  // pt (~39 mm)
     const LOGO_MAX_H = 50;   // pt (~18 mm)
     const logoX = pageW - M - LOGO_MAX_W;
@@ -39,10 +39,10 @@ export async function buildCertificate({
             const dataUrl = await toDataUrl(logoUrl);
             const { wPt, hPt } = await scaledPtSize(dataUrl, LOGO_MAX_W, LOGO_MAX_H);
             doc.addImage(dataUrl, 'PNG', logoX, logoY, wPt, hPt);
-        } catch { /* si falla, seguimos sin logo */ }
+        } catch { /* seguimos sin logo si falla */ }
     }
 
-    // ===== 2) Título (simple y limpio) =====
+    // ===== 2) Título simple y limpio =====
     const titleES =
         type === 'contrata'
             ? 'Certificado Video Acogida Empresas Externas'
@@ -66,13 +66,11 @@ export async function buildCertificate({
     // ===== 3) Datos en UNA columna =====
     let y = M + 60; // base bajo el título
 
-    // Utilidad para "Etiqueta: Valor" en la MISMA línea, con label seminegrita
+    // Etiqueta (seminegrita) + valor en la MISMA línea
     const labelValue = (labelEs, labelEn, value) => {
         const label = (lang === 'es' ? labelEs : labelEn) + ': ';
-        // etiqueta
         doc.setFont('helvetica', 'bold'); doc.setFontSize(12); doc.setTextColor(51, 65, 85); // slate-700
         doc.text(label, M, y);
-        // valor (a continuación, mismo baseline)
         const off = doc.getTextWidth(label);
         doc.setFont('helvetica', 'normal'); doc.setFontSize(12); doc.setTextColor(15, 23, 42); // slate-900
         doc.text(String(value ?? '—'), M + off, y);
@@ -88,7 +86,7 @@ export async function buildCertificate({
     labelValue('ID', 'ID', certId);
 
     // ===== 4) QR + enlace =====
-    const QR_SIZE = 150; // pt (~53 mm) buen equilibrio nitidez/peso/velocidad
+    const QR_SIZE = 150; // pt (~53 mm) buen equilibrio
     const qrY = y + 12;
 
     const qr = await QRCode.toDataURL(verifyUrl, {
@@ -96,11 +94,17 @@ export async function buildCertificate({
         margin: 1,
         scale: 4
     });
-    doc.addImage(qr, 'PNG', M, qrY, QR_SIZE, doc.addImage(qr, 'PNG', M, qrY, QR_SIZE, QR_SIZE);
 
-    // URL de verificación (debajo del QR, estilo discreto)
+    // ⚠️ Línea corregida (sin duplicado dentro de los parámetros)
+    doc.addImage(qr, 'PNG', M, qrY, QR_SIZE, QR_SIZE);
+
+    // URL de verificación a la derecha del QR
     doc.setFont('helvetica', 'normal'); doc.setFontSize(10); doc.setTextColor(71, 85, 105); // slate-600
-    doc.text(doc.splitTextToSize(verifyUrl, pageW - (M + QR_SIZE + 16) - M), M + QR_SIZE + 16, qrY + 18);
+    doc.text(
+        doc.splitTextToSize(verifyUrl, pageW - (M + QR_SIZE + 16) - M),
+        M + QR_SIZE + 16,
+        qrY + 18
+    );
 
     // ===== 5) Pie (ligero) =====
     doc.setDrawColor(226, 232, 240);
@@ -131,18 +135,30 @@ async function toDataUrl(url) {
     });
 }
 
-/** Devuelve tamaño en pt manteniendo proporción dentro de [maxWpt, maxHpt] (sin deformar) */
+
+
+/**
+ * Devuelve tamaño en pt manteniendo proporción dentro de [maxWpt, maxHpt] (sin deformar)
+ */
 function scaledPtSize(dataUrl, maxWpt, maxHpt) {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
         const img = new Image();
         img.onload = () => {
-            // jsPDF usa ~72 dpi → 1 px ≈ 0.75 pt
+            // jsPDF ~72 dpi ⇒ 1 px ≈ 0.75 pt
             const px2pt = 0.75;
-            const wPt = img.width * px2pt;
-            const hPt = img.height * px2pt;
+            // Usa naturalWidth/Height para evitar valores 0 en algunos navegadores
+            const wPt = (img.naturalWidth || img.width) * px2pt;
+            const hPt = (img.naturalHeight || img.height) * px2pt;
+
+            // ÚNICA línea de escala (no dupliques "const scale"):
             const scale = Math.min(maxWpt / wPt, maxHpt / hPt, 1);
-            resolve({ wPt: wPt * scale, hPt: hPt * scale });
+
+            resolve({
+                wPt: Math.max(1, wPt * scale),
+                hPt: Math.max(1, hPt * scale),
+            });
         };
+        img.onerror = () => reject(new Error('No se pudo cargar el logo'));
         img.src = dataUrl;
     });
 }
