@@ -19,6 +19,20 @@ import PolicyGate from './components/PolicyGate.jsx';
 // Logo del certificado servido desde public/brand/logo-global.png
 const CERT_LOGO_URL = import.meta.env.BASE_URL + 'brand/logo-global.png';
 
+// Helper robusto para descargar blobs (ancla + click + revoke)
+function downloadBlob(filename, blob) {
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.rel = 'noopener';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    // revocar en el siguiente tick para asegurar la descarga
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+}
+
 const stepsES = ['Datos', 'Vídeo', 'Test', 'Certificado'];
 const stepsEN = ['Details', 'Video', 'Test', 'Certificate'];
 const stepsFR = ['Données', 'Vidéo', 'Test', 'Certificat'];
@@ -167,13 +181,8 @@ export default function App() {
             logoUrl: CERT_LOGO_URL
         });
 
-        // Descarga directa
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `certificado-${id}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
+        // DESCARGA inmediata (gesto de usuario garantizado)
+        downloadBlob(`certificado-${id}.pdf`, blob);
 
         // Envío por email (si está activado)
         try {
@@ -282,6 +291,7 @@ export default function App() {
         certs.push({ id, expiry: expiry.toISOString() });
         localStorage.setItem('certs', JSON.stringify(certs));
 
+        // 1) Generar PDF
         const blob = await buildCertificate({
             lang,
             name: participant.name,
@@ -296,7 +306,10 @@ export default function App() {
             logoUrl: CERT_LOGO_URL
         });
 
-        // Envío por email (si está activado)
+        // 2) DESCARGA inmediata (gesto de usuario)
+        downloadBlob(`certificado-${id}.pdf`, blob);
+
+        // 3) (Opcional) envío por email — no bloquea la descarga
         try {
             if (cfg?.mail?.enabled) {
                 const b64 = await blobToBase64(blob);
@@ -328,7 +341,7 @@ export default function App() {
             console.error('sendMail error', e);
         }
 
-        // Upsert remoto antes de finalizar
+        // 4) (Opcional) upsert remoto — tampoco bloquea la descarga
         try {
             if (cfg?.registry?.apiBase) {
                 await upsertRemote({
@@ -351,14 +364,7 @@ export default function App() {
             console.error('upsertRemote error', err);
         }
 
-        // Descarga del PDF generado
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = `certificado-${id}.pdf`;
-        a.click();
-        URL.revokeObjectURL(url);
-
+        // 5) Avanza al cierre
         setRoute('done');
     };
 
