@@ -54,7 +54,7 @@
             "en": "privacy/notice-en.html"
         },
         "mustScroll": false,
-        "mustAcknowledge": false
+        "mustAcknowledge": true
 
     },
 
