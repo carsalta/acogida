@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from 'react';
 
 const LS_KEY = 'appConfigOverrides'; // overrides locales (solo navegador)
@@ -34,6 +35,20 @@ function safeClearLocalOverrides() {
     }
 }
 
+/** Inyecta ENV de Vite en la config resultante */
+function injectEnv(cfg) {
+    const REG_BASE = import.meta.env.VITE_REGISTRY_API_BASE;
+    const REG_KEY = import.meta.env.VITE_REGISTRY_API_KEY;
+
+    const out = { ...cfg };
+    out.registry = {
+        ...(cfg?.registry ?? {}),
+        apiBase: REG_BASE || cfg?.registry?.apiBase || '',
+        apiKey: REG_KEY || cfg?.registry?.apiKey || ''
+    };
+    return out;
+}
+
 export function useConfig() {
     const [cfg, setCfg] = useState(null);
 
@@ -57,32 +72,32 @@ export function useConfig() {
                 const local = safeReadLocalOverrides();
 
                 // 4) merge: base <- shared <- local
-                setCfg(mergeCfg(mergeCfg(base, shared), local));
+                const merged = mergeCfg(mergeCfg(base, shared), local);
+
+                // 5) inyección ENV (apiBase/apiKey) sin tocar config.json
+                setCfg(injectEnv(merged));
             } catch {
-                // fallback mínimo funcional
-                setCfg({
+                // fallback minimo funcional (tambien con ENV inyectadas)
+                setCfg(injectEnv({
                     defaultLang: 'es',
                     enabledLangs: ['es', 'en'],
                     allowSeek: false,
                     allowSubtitles: true,
                     videos: {},
                     sites: {}
-                });
+                }));
             }
         };
         load();
     }, []);
 
-    // Guarda overrides en la capa local (para tu sesión).
-    // Para compartirlos, exporta overrides.json desde el Admin y súbelo a docs/.
     const saveOverrides = (over) => {
         safeWriteLocalOverrides(over);
-        setCfg((c) => mergeCfg(c || {}, over));
+        setCfg((c) => injectEnv(mergeCfg(c || {}, over)));
     };
 
     const resetOverrides = () => {
         safeClearLocalOverrides();
-        // recarga sólo en cliente
         if (typeof window !== 'undefined') window.location.reload();
     };
 
