@@ -1,119 +1,140 @@
 
-// src/pages/Verify.jsx
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useConfig } from '../hooks/useConfig';
 import { checkRemote } from '../lib/registry.remote';
 
-/**
- * Componente de verificación de certificados por QR/URL.
- * - Admite parámetros ?id=<certId> y ?certId=<certId>
- * - Usa months de config (fallback 36) para la lógica de validez remota
- * - Muestra fechas localizadas y días restantes/caducado
- */
+function daysLeft(expiryISO) {
+    if (!expiryISO) return null;
+    const end = new Date(expiryISO).getTime();
+    const now = Date.now();
+    return Math.ceil((end - now) / (1000 * 60 * 60 * 24));
+}
+
 export default function Verify({ c }) {
     const { cfg } = useConfig();
-    const [status, setStatus] = useState({ loading: true, error: null, data: null });
 
-    // Idioma UI para formatear fechas (es/en/fr/de/pt...)
-    const uiLang = (navigator.language || 'es').slice(0, 2);
+    // Lee ?id=... de la URL
+    const id = useMemo(() => {
+        try {
+            const p = new URLSearchParams(window.location.search);
+            return (p.get('id') || '').trim();
+        } catch {
+            return '';
+        }
+    }, []);
+
+    // phase: 'idle' | 'loading' | 'ok' | 'error'
+    const [state, setState] = useState({ phase: 'idle', data: null, error: '' });
 
     useEffect(() => {
-        const p = new URLSearchParams(location.search);
-        const certId = p.get('id') || p.get('certId') || ''; // el QR usa ?id=<certId>
-        const months = cfg?.registry?.months ?? 36;           // 3 años por defecto
-        const apiBase = cfg?.registry?.apiBase;
-        const apiKey = cfg?.registry?.apiKey;
+        // 1) Aún no hay config -> esperamos (no mostramos error)
+        if (!cfg) return;
 
-        (async () => {
-            try {
-                if (!apiBase) {
-                    setStatus({ loading: false, error: 'Falta apiBase en config.json', data: null });
+        const apiBase = cfg.registry?.apiBase || '';
+        const apiKey = cfg.registry?.apiKey || '';
+
+        // 2) Ya hay config y sigue sin apiBase -> ahora sí, error
+        if (!apiBase) {
+            setState({ phase: 'error', data: null, error: 'Falta apiBase (configuración no inicializada)' });
+            return;
+        }
+
+        // 3) Falta el parámetro id
+        if (!id) {
+            setState({ phase: 'error', data: null, error: 'Falta id en la URL (?id=...)' });
+            return;
+        }
+
+        // 4) Consultamos sólo cuando cfg + id están listos
+        let cancelled = false;
+        setState({ phase: 'loading', data: null, error: '' });
+
+        checkRemote({ apiBase, months: cfg?.registry?.months ?? 36, certId: id, apiKey })
+            .then((res) => {
+                if (cancelled) return;
+                if (!res || res.error) {
+                    setState({ phase: 'error', data: null, error: res?.error || 'Error desconocido en verificación' });
                     return;
                 }
-                if (!certId) {
-                    setStatus({ loading: false, error: c?.verifyPage?.notfound || 'No encontrado', data: null });
+                if (!res.found) {
+                    setState({ phase: 'error', data: null, error: 'No encontrado' });
                     return;
                 }
-                // Lookup remoto por certId (Sheets/DB según tu backend)
-                const r = await checkRemote({ apiBase, months, certId, apiKey });
-                setStatus({ loading: false, error: null, data: r });
-            } catch (err) {
-                setStatus({ loading: false, error: err.message, data: null });
-            }
-        })();
-    }, [cfg, c]);
+                setState({ phase: 'ok', data: res, error: '' });
+            })
+            .catch((e) => {
+                if (cancelled) return;
+                setState({ phase: 'error', data: null, error: String(e?.message || e) });
+            });
 
-    if (status.loading) {
-        return <div className="card">Cargando…</div>;
-    }
+        return () => { cancelled = true; };
+    }, [cfg, id]);
 
-    if (status.error) {
+    // ====== Render ======
+
+    // Aún cargando la config -> nada de errores
+    if (!cfg) {
         return (
-            <div className="card" style={{ borderColor: '#ef4444', background: '#fee2e2' }}>
-                <p className="text-xl">Error</p>
-                <p>{status.error}</p>
-                <a className="btn" style={{ marginTop: 12 }} href={location.pathname}>
-                    {c?.newStart || 'Nuevo intento'}
-                </a>
-            </div>
+            <section className="card" style={{ background: '#eef2ff' }}>
+                <p style={{ fontSize: 16, color: '#334155' }}>Cargando configuración…</p>
+            </section>
         );
     }
 
-    const r = status.data;
-    if (!r?.found) {
+    if (state.phase === 'error') {
         return (
-            <div className="card" style={{ borderColor: '#ef4444', background: '#fee2e2' }}>
-                <p className="text-xl">{c?.verifyPage?.notfound || 'No encontrado'}</p>
-                <a className="btn" style={{ marginTop: 12 }} href={location.pathname}>
-                    {c?.newStart || 'Nuevo intento'}
-                </a>
-            </div>
+            <section className="card" style={{ border: '1px solid #fecaca', background: '#fee2e2' }}>
+                <p style={{ fontSize: 16, color: '#991b1b' }}>Error</p>
+                <p style={{ color: '#7f1d1d' }}>{state.error}</p>
+                <button
+                    className="btn"
+                    style={{ marginTop: 12 }}
+                    onClick={() => window.location.replace(window.location.pathname)}
+                >
+                    Nuevo intento
+                </button>
+            </section>
         );
     }
 
-    const rec = r.record;
-    const valid = !!r.isValid;
+    if (state.phase === 'loading' || state.phase === 'idle') {
+        return (
+            <section className="card" style={{ background: '#ecfeff', border: '1px solid #bae6fd' }}>
+                <p style={{ fontSize: 16, color: '#0c4a6e' }}>Comprobando…</p>
+            </section>
+        );
+    }
 
-    // Helpers de formato y contador
-    const fmt = (iso) => (iso ? new Date(iso).toLocaleDateString(uiLang) : '—');
-    const daysLeft =
-        rec?.expiryISO ? Math.ceil((new Date(rec.expiryISO).getTime() - Date.now()) / 86400000) : null;
-    const vigenciaText =
-        typeof daysLeft === 'number'
-            ? daysLeft >= 0
-                ? `· ${daysLeft} día${daysLeft === 1 ? '' : 's'} restantes`
-                : `· ${Math.abs(daysLeft)} día${Math.abs(daysLeft) === 1 ? '' : 's'} caducado`
-            : '';
+    // OK
+    const rec = state.data?.record ?? {};
+    const dleft = daysLeft(rec.expiryISO);
+    const validBadge = state.data?.isValid ? '✓ Certificado válido' : '⚠ Certificado caducado';
 
     return (
-        <div
-            className="card"
-            style={{
-                borderColor: valid ? '#22c55e' : '#ef4444',
-                background: valid ? '#ecfdf5' : '#fee2e2'
-            }}
-        >
-            <p style={{ color: '#64748b' }}>{c?.verifyPage?.checking || 'Comprobando…'}</p>
-
-            <p className={valid ? 'text-green-700 text-xl' : 'text-amber-700 text-xl'}>
-                {valid ? (c?.verifyPage?.valid || '✓ Certificado válido') : (c?.verifyPage?.expired || '⚠ Certificado caducado')}
-            </p>
-
-            <div style={{ display: 'grid', gap: 6, marginTop: 8 }}>
-                <span><strong>DNI:</strong> {rec?.dni || '—'}</span>
-                <span><strong>Email:</strong> {rec?.email || '—'}</span>
-                <span><strong>Nombre:</strong> {rec?.name || '—'}</span>
-                <span><strong>Empresa:</strong> {rec?.company || '—'}</span>
-                <span><strong>Sitio:</strong> {rec?.site || '—'}</span>
-                <span><strong>Tipo:</strong> {rec?.type || '—'}</span>
-                <span><strong>Emitido:</strong> {fmt(rec?.issueISO)}</span>
-                <span><strong>Caducidad:</strong> {fmt(rec?.expiryISO)} {vigenciaText}</span>
-                <span><strong>CertId:</strong> {rec?.certId || '—'}</span>
+        <section className="card" style={{ border: '1px solid #86efac', background: '#ecfdf5' }}>
+            <p style={{ fontSize: 16, color: '#166534' }}>{validBadge}</p>
+            <div style={{ display: 'grid', gap: 4, fontSize: 14, color: '#065f46' }}>
+                <span><strong>DNI:</strong> {rec.dni || '—'}</span>
+                <span><strong>Email:</strong> {rec.email || '—'}</span>
+                <span><strong>Nombre:</strong> {rec.name || '—'}</span>
+                <span><strong>Empresa:</strong> {rec.company || '—'}</span>
+                <span><strong>Sitio:</strong> {rec.site || '—'}</span>
+                <span><strong>Tipo:</strong> {rec.type || '—'}</span>
+                <span><strong>Emitido:</strong> {rec.issueISO ? new Date(rec.issueISO).toLocaleDateString() : '—'}</span>
+                <span>
+                    <strong>Caducidad:</strong> {rec.expiryISO ? new Date(rec.expiryISO).toLocaleDateString() : '—'}
+                    {typeof dleft === 'number' && <> · {dleft} días restantes</>}
+        </span>
+                <span><strong>CertId:</strong> {rec.certId || id}</span>
             </div>
 
-            <a className="btn" style={{ marginTop: 12 }} href={location.pathname}>
-                {c?.newStart || 'Nuevo intento'}
-            </a>
-        </div>
+            <button
+                className="btn"
+                style={{ marginTop: 12 }}
+                onClick={() => window.location.replace(window.location.pathname)}
+            >
+                Nuevo intento
+            </button>
+        </section>
     );
 }
