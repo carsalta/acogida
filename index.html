@@ -3,21 +3,49 @@
 <html lang="es">
 <head>
     <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport"
+          content="width=device-width, initial-scale=1.0" />
     <title>Inducción</title>
+
+    <!-- PWA -->
     <link rel="manifest" href="%BASE_URL%manifest.webmanifest" />
     <meta name="theme-color" content="#0ea5e9" />
-    <!-- Evitar caché del HTML -->
+    <meta name="color-scheme" content="light only" />
+
+    <!-- Evitar caché del HTML (los JS/CSS ya llevan hash de Vite) -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
 </head>
+
 <body>
+    <noscript>Esta aplicación requiere JavaScript habilitado.</noscript>
     <div id="root"></div>
-    <script type="module" src="./src/main.jsx"></script>
+
+    <!-- Entrada de Vite: en dev apunta a /src/main.jsx; en build Vite lo reescribe a /acogida/assets/*.js -->
+    <script type="module" src="/src/main.jsx"></script>
+
+    <!-- Registro del Service Worker con base correcta (GitHub Pages: /acogida/) -->
+    <script>
+        (function () {
+            if (!('serviceWorker' in navigator)) return;
+
+            // %BASE_URL% lo sustituye Vite durante el build (p.ej., '/acogida/')
+            var BASE = '%BASE_URL%';
+            var SW_URL = BASE + 'sw.js';
+
+            window.addEventListener('load', function () {
+                navigator.serviceWorker
+                    .register(SW_URL, { scope: BASE })
+                    .then(function (reg) {
+                        // (Opcional) comprobar actualización del SW
+                        if (reg.update) reg.update();
+                    })
+                    .catch(function (err) {
+                        console.error('[SW] register error:', err);
+                    });
+            });
+        })();
+    </script>
 </body>
 </html>
-
-
-
-

@@ -1,4 +1,39 @@
 
+/* Service Worker para acogida (GitHub Pages / local) */
+
+/** Sube versión al cambiar lógica de caché */
+const CACHE = 'acogida-cache-v2';
+
+/** Deriva la base desde el scope de registro (p.ej., '/acogida/') */
+const BASE = new URL(self.registration.scope).pathname.replace(/\/+$/, '/');
+
+/** Fallback de index relativo a BASE */
+const INDEX = `${BASE}index.html`;
+
+/** Precarga mínima (raíz + index) */
+const PRECACHE = [BASE, INDEX];
+
+/* ===== Install: precache e iniciar inmediatamente ===== */
+self.addEventListener('install', (event) => {
+    event.waitUntil(
+        caches.open(CACHE)
+            .then((c) => c.addAll(PRECACHE))
+            .then(() => self.skipWaiting())
+    );
+});
+
+/* ===== Activate: limpia cachés viejos y toma control ===== */
+self.addEventListener('activate', (event) => {
+    event.waitUntil(
+        caches.keys()
+            .then((keys) => Promise.all(
+                keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
+            ))
+            .then(() => self.clients.claim())
+    );
+});
+
+/* ===== Fetch: estrategias por tipo de petición ===== */
 self.addEventListener('fetch', (event) => {
     const req = event.request;
     const url = new URL(req.url);
@@ -6,20 +41,23 @@ self.addEventListener('fetch', (event) => {
     // Sólo GET; no interceptamos POST/PUT...
     if (req.method !== 'GET') return;
 
-    const isSameOrigin = url.origin === location.origin;
-    const isNavigation = req.mode === 'navigate';
-    const isIndexHtml = isSameOrigin && url.pathname.endsWith('/index.html');
+    const isSameOrigin = url.origin === self.location.origin;
+    const isNavigation = req.mode === 'navigate' || req.destination === 'document';
+    const isIndexHtml = isSameOrigin && (
+        url.pathname === BASE || url.pathname === INDEX || /\/index\.html$/.test(url.pathname)
+    );
     const hasSearch = !!url.search; // ?id=..., ?v=...
 
     // Endpoints externos o que NO queremos cachear
     const isExternalApi =
         !isSameOrigin ||
-        /(^|\.)youtube\.com$|(^|\.)youtu\.be$|script\.google\.com$/i.test(url.hostname);
+        /(youtube\.com|youtu\.be|script\.google\.com)$/i.test(url.hostname);
 
+    // JSON dinámico (config y overrides) -> no cache persistente
     const isDynamicJson =
         isSameOrigin && /\/(config\.json|overrides\.json)$/i.test(url.pathname);
 
-    // ==== 1) Navegaciones e index.html -> NETWORK-FIRST ====
+    /* ---- 1) Navegación / index.html -> NETWORK-FIRST ---- */
     if (isNavigation || isIndexHtml) {
         event.respondWith(
             fetch(req)
@@ -31,13 +69,13 @@ self.addEventListener('fetch', (event) => {
                 })
                 .catch(() =>
                     // Fallback si estamos offline
-                    caches.match(req).then((r) => r || caches.match('./index.html'))
+                    caches.match(req).then((r) => r || caches.match(INDEX))
                 )
         );
-        return; // cerramos el caso de navegación
+        return;
     }
 
-    // ==== 2) Externos / dinámicos -> NETWORK-ONLY (sin cache) ====
+    /* ---- 2) Externos / dinámicos / con query -> NETWORK-ONLY ---- */
     if (isExternalApi || isDynamicJson || hasSearch) {
         event.respondWith(
             fetch(req).catch(() => caches.match(req)) // si falla, intenta caché (puede no existir)
@@ -45,7 +83,7 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    // ==== 3) Estáticos same-origin -> STALE-WHILE-REVALIDATE ====
+    /* ---- 3) Assets estáticos same-origin -> STALE-WHILE-REVALIDATE ---- */
     // Sólo assets: script/style/image/font (no documentos/JSON)
     const isAsset = ['script', 'style', 'image', 'font'].includes(req.destination);
 
@@ -63,8 +101,15 @@ self.addEventListener('fetch', (event) => {
                     })
                     .catch(() => cached); // si fallo de red, devuelve caché si existe
 
-                // stale-while-revalidate: si hay caché, la devuel        // stale-while-revalidate: si hay caché, la devuelvo inmediata y revalido en segundo plano
+                // stale-while-revalidate: si hay caché, la devuelvo inmediata y revalido en segundo plano
                 return cached || networkFetch;
             })
         );
+        return;
     }
+
+    /* ---- 4) Default -> NETWORK-FIRST suave ---- */
+    event.respondWith(
+        fetch(req).catch(() => caches.match(req))
+    );
+});

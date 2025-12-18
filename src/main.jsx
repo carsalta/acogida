@@ -6,13 +6,13 @@ import ErrorBoundary from './components/ErrorBoundary.jsx';
 import './index.css';
 
 if (import.meta.env.PROD && 'serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(()=>{});
-  });
+    window.addEventListener('load', () => {
+        navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js').catch(() => { });
+    });
 }
 
 createRoot(document.getElementById('root')).render(
-  <ErrorBoundary>
-    <App />
-  </ErrorBoundary>
+    <ErrorBoundary>
+        <App />
+    </ErrorBoundary>
 );
