@@ -53,8 +53,8 @@
             "es": "privacy/aviso-es.html",
             "en": "privacy/notice-en.html"
         },
-        "mustScroll": true,
-        "mustAcknowledge": true
+        "mustScroll": false,
+        "mustAcknowledge": false
 
     },
 

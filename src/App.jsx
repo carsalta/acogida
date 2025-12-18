@@ -237,13 +237,13 @@ export default function App() {
             return;
         }
 
-        // RGPD: Privacidad leída/aceptada
+        // RGPD: Privacidad aceptada (sin vista previa embebida)
         const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
-        if (sitePrivacyCfg?.url && !privacyOk) {
+        if ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk) {
             alert(
                 lang === 'es'
-                    ? 'Debes leer y aceptar el Aviso de privacidad antes de continuar.'
-                    : 'You must read and acknowledge the Privacy Notice before continuing.'
+                    ? 'Debes aceptar el Aviso de privacidad antes de continuar.'
+                    : 'You must accept the Privacy Notice before continuing.'
             );
             return;
         }
@@ -389,14 +389,14 @@ export default function App() {
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
 
-    // RGPD: datos de Privacidad (site > global) para PolicyGate
+    // RGPD: datos de Privacidad (site > global) para botón de abrir + check
     const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
     const privacyTitle =
         sitePrivacyCfg?.title?.[lang] ??
         sitePrivacyCfg?.title?.['es'] ??
         (lang === 'es' ? 'Aviso de privacidad (RGPD)' : 'Privacy Notice (GDPR)');
 
-    // Soporta string o objeto por idioma en config.json
+    // Soporta string u objeto por idioma en config.json
     const privacyUrlRaw =
         typeof sitePrivacyCfg?.url === 'string'
             ? sitePrivacyCfg.url
@@ -600,17 +600,38 @@ export default function App() {
                             />
                         </Field>
 
-                        {/* Pasarela de Privacidad (RGPD) */}
-                        {privacyUrlAbs && (
-                            <PolicyGate
-                                title={privacyTitle}
-                                url={privacyUrlAbs}
-                                mustScroll={!!sitePrivacyCfg?.mustScroll}
-                                mustAcknowledge={!!sitePrivacyCfg?.mustAcknowledge}
-                                labels={c.privacy || {}}
-                                isKiosk={kiosk}
-                                onStatusChange={(ok) => setPrivacyOk(ok)}
-                            />
+                        {/* GDPR mínimo: botón “Abrir aviso” + check de aceptación (sin vista previa/scroll) */}
+                        {(sitePrivacyCfg?.mustAcknowledge ?? true) && (
+                            <div style={{ display: 'grid', gap: 8 }}>
+                                {privacyUrlAbs && (
+                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                        <button
+                                            type="button"
+                                            className="btn btn-outline"
+                                            onClick={() => window.open(privacyUrlAbs, '_blank', 'noopener,noreferrer')}
+                                        >
+                                            {c.privacy?.openDoc ?? (lang === 'es' ? 'Abrir aviso' : 'Open notice')}
+                                        </button>
+                                        <span style={{ fontSize: 13, color: '#64748b' }}>
+                                            {c.privacy?.mustRead ?? (lang === 'es' ? 'Debes revisar el aviso completo.' : 'You must review the entire notice.')}
+                                        </span>
+                                    </div>
+                                )}
+
+                                <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                    <input
+                                        type="checkbox"
+                                        checked={privacyOk}
+                                        onChange={(e) => setPrivacyOk(e.target.checked)}
+                                    />
+                                    <span>
+                                        {c.privacy?.ackLabel ??
+                                            (lang === 'es'
+                                                ? 'He leído y acepto el Aviso de privacidad (RGPD).'
+                                                : 'I have read and accept the Privacy Notice (GDPR).')}
+                                    </span>
+                                </label>
+                            </div>
                         )}
 
                         {/* Pasarela de Política (Calidad y Seguridad Alimentaria) */}
@@ -626,11 +647,11 @@ export default function App() {
                             />
                         )}
 
-                        {/* Botón bloqueado si no se han leído/aceptado los documentos requeridos */}
+                        {/* Botón bloqueado si no se han aceptado los documentos requeridos */}
                         <button
                             className="btn"
                             type="submit"
-                            disabled={(policyUrlAbs && !policyOk) || (privacyUrlAbs && !privacyOk)}
+                            disabled={(policyUrlAbs && !policyOk) || ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk)}
                         >
                             {c.startVideo}
                         </button>
