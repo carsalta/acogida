@@ -1,16 +1,18 @@
+Ôªø
+/* Service Worker para acogida (GitHub Pages / local)
+   - Network-first para HTML y assets (JS/CSS) => siempre cogemos lo √∫ltimo si hay red
+   - Limpieza autom√°tica de cach√©s antiguos por versi√≥n
+   - Broadcast al activar nueva versi√≥n para recargar las p√°ginas controladas
+*/
 
-/* Service Worker para acogida (GitHub Pages / local) */
+/** üí° Cambia la versi√≥n en cada publicaci√≥n (o inyecta con tu plugin si prefieres) */
+const VERSION = '2025-12-18-01';
+const CACHE = `acogida-cache-${VERSION}`;
 
-/** Sube versiÛn al cambiar lÛgica de cachÈ */
-const CACHE = 'acogida-cache-v2';
-
-/** Deriva la base desde el scope de registro (p.ej., '/acogida/') */
 const BASE = new URL(self.registration.scope).pathname.replace(/\/+$/, '/');
-
-/** Fallback de index relativo a BASE */
 const INDEX = `${BASE}index.html`;
 
-/** Precarga mÌnima (raÌz + index) */
+/** Precarga m√≠nima (root + index) para fallback */
 const PRECACHE = [BASE, INDEX];
 
 /* ===== Install: precache e iniciar inmediatamente ===== */
@@ -22,7 +24,7 @@ self.addEventListener('install', (event) => {
     );
 });
 
-/* ===== Activate: limpia cachÈs viejos y toma control ===== */
+/* ===== Activate: limpia cach√©s viejos y toma control ===== */
 self.addEventListener('activate', (event) => {
     event.waitUntil(
         caches.keys()
@@ -30,15 +32,21 @@ self.addEventListener('activate', (event) => {
                 keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))
             ))
             .then(() => self.clients.claim())
+            .then(async () => {
+                // üîî Avisa a todas las p√°ginas: hay una nueva versi√≥n -> recarga
+                const clients = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+                for (const client of clients) {
+                    client.postMessage({ type: 'NEW_VERSION', version: VERSION });
+                }
+            })
     );
 });
 
-/* ===== Fetch: estrategias por tipo de peticiÛn ===== */
+/* ===== Fetch: estrategias ===== */
 self.addEventListener('fetch', (event) => {
     const req = event.request;
     const url = new URL(req.url);
 
-    // SÛlo GET; no interceptamos POST/PUT...
     if (req.method !== 'GET') return;
 
     const isSameOrigin = url.origin === self.location.origin;
@@ -46,70 +54,83 @@ self.addEventListener('fetch', (event) => {
     const isIndexHtml = isSameOrigin && (
         url.pathname === BASE || url.pathname === INDEX || /\/index\.html$/.test(url.pathname)
     );
-    const hasSearch = !!url.search; // ?id=..., ?v=...
 
-    // Endpoints externos o que NO queremos cachear
     const isExternalApi =
         !isSameOrigin ||
         /(youtube\.com|youtu\.be|script\.google\.com)$/i.test(url.hostname);
 
-    // JSON din·mico (config y overrides) -> no cache persistente
     const isDynamicJson =
         isSameOrigin && /\/(config\.json|overrides\.json)$/i.test(url.pathname);
 
-    /* ---- 1) NavegaciÛn / index.html -> NETWORK-FIRST ---- */
+    const hasSearch = !!url.search; // ?id=..., ?v=...
+
+    /* ---- 1) Navegaci√≥n / index.html -> NETWORK-FIRST ---- */
     if (isNavigation || isIndexHtml) {
         event.respondWith(
-            fetch(req)
+            fetch(new Request(req, { cache: 'reload' }))   // fuerza revalidaci√≥n del index
                 .then((res) => {
-                    // Guarda copia para fallback
                     const clone = res.clone();
                     caches.open(CACHE).then((c) => c.put(req, clone));
                     return res;
                 })
-                .catch(() =>
-                    // Fallback si estamos offline
-                    caches.match(req).then((r) => r || caches.match(INDEX))
-                )
+                .catch(() => caches.match(req).then((r) => r || caches.match(INDEX)))
         );
         return;
     }
 
-    /* ---- 2) Externos / din·micos / con query -> NETWORK-ONLY ---- */
+    /* ---- 2) Externos / din√°micos / con query -> NETWORK-ONLY ---- */
     if (isExternalApi || isDynamicJson || hasSearch) {
+        event.respondWith(fetch(req).catch(() => caches.match(req)));
+        return;
+    }
+
+    /* ---- 3) Assets JS/CSS same-origin -> NETWORK-FIRST + fallback ---- */
+    const isScript = req.destination === 'script';
+    const isStyle = req.destination === 'style';
+    if (isSameOrigin && (isScript || isStyle)) {
         event.respondWith(
-            fetch(req).catch(() => caches.match(req)) // si falla, intenta cachÈ (puede no existir)
+            fetch(req)
+                .then((res) => {
+                    if (res.ok && res.type === 'basic') {
+                        const clone = res.clone();
+                        caches.open(CACHE).then((c) => c.put(req, clone));
+                    }
+                    return res;
+                })
+                .catch(() => caches.match(req)) // sin red: usa cach√© si existe
         );
         return;
     }
 
-    /* ---- 3) Assets est·ticos same-origin -> STALE-WHILE-REVALIDATE ---- */
-    // SÛlo assets: script/style/image/font (no documentos/JSON)
-    const isAsset = ['script', 'style', 'image', 'font'].includes(req.destination);
-
-    if (isSameOrigin && isAsset) {
+    /* ---- 4) Im√°genes / fuentes -> STALE-WHILE-REVALIDATE ---- */
+    const isImage = req.destination === 'image';
+    const isFont = req.destination === 'font';
+    if (isSameOrigin && (isImage || isFont)) {
         event.respondWith(
             caches.match(req).then((cached) => {
                 const networkFetch = fetch(req)
                     .then((res) => {
-                        // Cachea sÛlo respuestas b·sicas same-origin correctas
                         if (res.ok && res.type === 'basic') {
                             const clone = res.clone();
                             caches.open(CACHE).then((c) => c.put(req, clone));
                         }
                         return res;
                     })
-                    .catch(() => cached); // si fallo de red, devuelve cachÈ si existe
-
-                // stale-while-revalidate: si hay cachÈ, la devuelvo inmediata y revalido en segundo plano
+                    .catch(() => cached);
                 return cached || networkFetch;
             })
         );
         return;
     }
 
-    /* ---- 4) Default -> NETWORK-FIRST suave ---- */
-    event.respondWith(
-        fetch(req).catch(() => caches.match(req))
-    );
+    /* ---- 5) Default -> NETWORK-FIRST suave ---- */
+    event.respondWith(fetch(req).catch(() => caches.match(req)));
+});
+
+/* ===== Mensajes desde las p√°ginas (opcional) ===== */
+self.addEventListener('message', (event) => {
+    // Si una p√°gina pide "SKIP_WAITING", activamos inmediata (√∫til si no quieres esperar al ciclo normal)
+    if (event.data && event.data.type === 'SKIP_WAITING') {
+        self.skipWaiting();
+    }
 });
