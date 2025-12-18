@@ -73,13 +73,13 @@ export default function App() {
     );
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
-    const [generating, setGenerating] = useState(false); // ⬅️ freno a dobles ejecuciones
+    const [generating, setGenerating] = useState(false); // freno a dobles ejecuciones
 
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
     // Estado pasarelas
     const [policyOk, setPolicyOk] = useState(false);
-    const [privacyOk, setPrivacyOk] = useState(false); // ⬅️ RGPD
+    const [privacyOk, setPrivacyOk] = useState(false); // GDPR
 
     // Exención: registro previo válido
     const [existingRecord, setExistingRecord] = useState(null);
@@ -238,7 +238,8 @@ export default function App() {
         }
 
         // RGPD: Privacidad leída/aceptada
-        if (cfg?.privacy?.url && !privacyOk) {
+        const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
+        if (sitePrivacyCfg?.url && !privacyOk) {
             alert(
                 lang === 'es'
                     ? 'Debes leer y aceptar el Aviso de privacidad antes de continuar.'
@@ -383,24 +384,25 @@ export default function App() {
     const subTracks = tracks(type, lang, enabledLangs);
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
 
-    // Datos de política (sitio > global) para PolicyGate
+    // Datos de Política (site > global) para PolicyGate
     const policyCfg = siteCfg?.policy ?? cfg?.policy;
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
 
-    // RGPD: datos de Privacidad (global)
-
-    const privacyCfg = cfg?.privacy;
+    // RGPD: datos de Privacidad (site > global) para PolicyGate
+    const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
     const privacyTitle =
-        privacyCfg?.title?.[lang] ??
-        privacyCfg?.title?.['es'] ??
-        (lang === 'es' ? 'Aviso de privacidad' : 'Privacy Notice');
+        sitePrivacyCfg?.title?.[lang] ??
+        sitePrivacyCfg?.title?.['es'] ??
+        (lang === 'es' ? 'Aviso de privacidad (RGPD)' : 'Privacy Notice (GDPR)');
 
-    // Soporta string o objeto por idioma
-    const privacyUrlRaw = (typeof privacyCfg?.url === 'string')
-        ? privacyCfg.url
-        : (privacyCfg?.url?.[lang] ?? privacyCfg?.url?.['es'] ?? '');
+    // Soporta string o objeto por idioma en config.json
+    const privacyUrlRaw =
+        typeof sitePrivacyCfg?.url === 'string'
+            ? sitePrivacyCfg.url
+            : (sitePrivacyCfg?.url?.[lang] ?? sitePrivacyCfg?.url?.['es'] ?? '');
 
+    const privacyUrlAbs = privacyUrlRaw ? abs(privacyUrlRaw) : '';
 
     if (route === 'verify') {
         return (
@@ -603,8 +605,8 @@ export default function App() {
                             <PolicyGate
                                 title={privacyTitle}
                                 url={privacyUrlAbs}
-                                mustScroll={!!privacyCfg?.mustScroll}
-                                mustAcknowledge={!!privacyCfg?.mustAcknowledge}
+                                mustScroll={!!sitePrivacyCfg?.mustScroll}
+                                mustAcknowledge={!!sitePrivacyCfg?.mustAcknowledge}
                                 labels={c.privacy || {}}
                                 isKiosk={kiosk}
                                 onStatusChange={(ok) => setPrivacyOk(ok)}
