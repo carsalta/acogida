@@ -34,14 +34,11 @@
         "expired": "⚠ Certificado caducado",
         "notfound": "✖ No encontrado"
     },
-
     "privacy": {
         "openDoc": "Abrir aviso",
         "mustRead": "Debes revisar el aviso completo.",
         "ackLabel": "He leído y acepto el Aviso de privacidad (RGPD).",
         "scrollHint": "Desplázate hasta el final del aviso para habilitar la aceptación."
-
-
     },
     "policy": {
         "header": "Política y Compromiso de Calidad y Seguridad Alimentaria",
@@ -49,23 +46,21 @@
         "mustRead": "Debes revisar el documento completo.",
         "ackLabel": "He leído y acepto la Política y el Compromiso de Calidad y Seguridad Alimentaria.",
         "scrollHint": "Desplázate hasta el final del documento para habilitar la aceptación."
-
     },
     "questions": {
         "visita": [
             {
                 "id": "v1",
-                "text": "En caso de escuchar la alarma de evacuación se dirigirá..",
+                "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
                 "options": [
                     "Al punto de reunión",
                     "Al exterior de la planta, en lugar que no presente riesgo."
-
                 ],
                 "correct": 1
             },
             {
                 "id": "v2",
-                "text": "Esta permitido comer..",
+                "text": "¿Está permitido comer…?",
                 "options": [
                     "En cualquier parte del recinto de la fábrica",
                     "Solo en los puntos autorizados a tal efecto"
@@ -77,7 +72,7 @@
                 "text": "¿Qué debe hacer antes de entrar en las zonas productivas?",
                 "options": [
                     "Lavarse las manos",
-                    "Apagar el télefono móvil"
+                    "Apagar el teléfono móvil"
                 ],
                 "correct": 0
             },
@@ -87,16 +82,15 @@
                 "options": [
                     "Depositarlos en el depósito, contenedor o almacén que corresponda",
                     "Tirar los líquidos sobrantes al desagüe"
-
                 ],
                 "correct": 0
             },
             {
                 "id": "v5",
-                "text": "En caso de fuga de amoniaco deberemos",
+                "text": "En caso de fuga de amoniaco deberemos:",
                 "options": [
                     "Evacuar las instalaciones",
-                    "Permanecer en el puesto de trabajo hasta recibir por megafonía o mediante el equipo de alarma el aviso de evacuación o confinaminento",
+                    "Permanecer en el puesto de trabajo hasta recibir por megafonía o mediante el equipo de alarma el aviso de evacuación o confinamiento",
                     "Ir directamente al punto de encuentro"
                 ],
                 "correct": 1
@@ -141,7 +135,7 @@
             },
             {
                 "id": "c05",
-                "text": "¿Ha sido informado de los Riesgos y de las zonas donde debe desarrollar su actividad?",
+                "text": "¿Ha sido informado de los riesgos y de las zonas donde debe desarrollar su actividad?",
                 "options": [
                     "Sí",
                     "No"
@@ -161,14 +155,14 @@
                 "id": "c07",
                 "text": "Al realizar trabajos en una zona debe…",
                 "options": [
-                    "Mantenerse el orden y limpieza durante toda la intervención",
+                    "Mantener el orden y la limpieza durante toda la intervención",
                     "Recoger y limpiar al finalizar la jornada"
                 ],
                 "correct": 0
             },
             {
                 "id": "c08",
-                "text": "Cuando realice intervenciones de corte y soldadura, trabajos en espacios confinados (por ejemplo trabajos en interior de depósitos), en altura, Loto…",
+                "text": "Cuando realice intervenciones de corte y soldadura, trabajos en espacios confinados (por ejemplo, trabajos en interior de depósitos), en altura, LOTO…",
                 "options": [
                     "Revisaré que los equipos que precise estén en perfecto estado.",
                     "Solicitaré y seguiré todos los pasos que se indican en el “Permiso de Trabajo”"
@@ -189,7 +183,7 @@
                 "text": "El arnés y el casco con barbuquejo es de uso obligatorio…",
                 "options": [
                     "Siempre que se realicen trabajos en altura",
-                    "Siempre que los trabajos en altura estén por encima de 2m"
+                    "Siempre que los trabajos en altura estén por encima de 2 m"
                 ],
                 "correct": 0
             },
@@ -209,7 +203,7 @@
                 "text": "Estará completamente prohibido…",
                 "options": [
                     "Transitar o detenerse entre los LGVs y su zona de carga o descarga",
-                    "Posicionarse sobre las horquillas de los LGVs o debajo de éstas cuando se encuentren levantadas",
+                    "Posicionarse sobre las horquillas de los LGVs o debajo de estas cuando se encuentren levantadas",
                     "El acceso a la zona de LGVs a todo personal no autorizado",
                     "Todas las anteriores"
                 ],
@@ -247,7 +241,7 @@
                 "text": "¿Cómo debe vestir para entrar en una zona productiva?",
                 "options": [
                     "Con zapatos de seguridad, pantalón largo sin bolsillos superiores y camiseta de manga larga sin cuello abierto ni botones",
-                    "Con zapatos de seguridad, pantalón largo sin bolsillos superiores, camiseta de manga larga sin cuello abierto ni botones, gorro que cubra la totalidad del cabello y barbuquejo si tiene barba o bigote"
+                    "Con zapatos de seguridad, pantalón largo sin bolsillos superiores, camiseta de manga larga sin cuello abierto ni botones, gorro que cubra la totalidad del cabello y, si tiene barba o bigote, cubrirlos"
                 ],
                 "correct": 1
             },
@@ -273,4 +267,3 @@
         ]
     }
 }
-    

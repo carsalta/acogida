@@ -48,19 +48,7 @@
     "registry": {
         "apiBase": "https://script.google.com/macros/s/AKfycbx_-UlamfUIh3NhL7Cr0zPLRijorSZTJ029WGf6UPnVV02Ux93fyMbj44GK99dpq94U/exec",
         "months": 36,
-        "apiKey": "b02a270e26b444a8101f0c583f0f3e0bf9cd5ec8d31484186eee5825f0659c4"
-    },
-    "privacy": {
-        "title": {
-            "es": "Aviso de privacidad (RGPD)",
-            "en": "Privacy Notice (GDPR)"
-        },
-        "url": {
-            "es": "docs/privacy/aviso-es.html",
-            "en": "docs/privacy/notice-en.html"
-        },
-        "mustScroll": true,
-        "mustAcknowledge": true
+        "apiKey": ""
     },
     "sites": {
         "Aldaya": {

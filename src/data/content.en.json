@@ -28,22 +28,18 @@
     "newStart": "New attempt",
     "finish": "Finish",
     "finishAndRetry": "Finish & New attempt",
-
     "verifyPage": {
         "checking": "Checking…",
         "valid": "✓ Certificate valid",
         "expired": "⚠ Certificate expired",
         "notfound": "✖ Not found"
     },
-
-    // ➕ New GDPR block for PolicyGate
     "privacy": {
         "openDoc": "Open notice",
         "mustRead": "You must review the entire notice.",
         "ackLabel": "I have read and accept the Privacy Notice (GDPR).",
         "scrollHint": "Scroll to the end of the notice to enable acknowledgment."
     },
-
     "policy": {
         "header": "Quality & Food Safety Policy and Commitment",
         "openDoc": "Open document",
@@ -51,7 +47,6 @@
         "ackLabel": "I have read and accept the Quality & Food Safety Policy and Commitment.",
         "scrollHint": "Scroll to the end of the document to enable acknowledgment."
     },
-
     "questions": {
         "visita": [
             {
