@@ -16,7 +16,6 @@ import { checkRemote, upsertRemote } from './lib/registry.remote';
 import { sendMail, blobToBase64 } from './lib/email';
 import PolicyGate from './components/PolicyGate.jsx';
 
-// Logo del certificado servido desde public/brand/logo-global.png
 const CERT_LOGO_URL = import.meta.env.BASE_URL + 'brand/logo-global.png';
 
 const stepsES = ['Datos', 'Vídeo', 'Test', 'Certificado'];
@@ -26,22 +25,8 @@ const stepsDE = ['Daten', 'Video', 'Test', 'Zertifikat'];
 const stepsPT = ['Dados', 'Vídeo', 'Teste', 'Certificado'];
 
 const fallbackVideos = {
-    visita: {
-        es: 'videos/es/visita.mp4',
-        en: 'videos/en/visita.mp4',
-        fr: 'videos/fr/visita.mp4',
-        de: 'videos/de/visita.mp4',
-        pt: 'videos/pt/visita.mp4',
-        minutes: 6
-    },
-    contrata: {
-        es: 'videos/es/contrata.mp4',
-        en: 'videos/en/contrata.mp4',
-        fr: 'videos/fr/contrata.mp4',
-        de: 'videos/de/contrata.mp4',
-        pt: 'videos/pt/contrata.mp4',
-        minutes: 15
-    }
+    visita: { es: 'videos/es/visita.mp4', en: 'videos/en/visita.mp4', fr: 'videos/fr/visita.mp4', de: 'videos/de/visita.mp4', pt: 'videos/pt/visita.mp4', minutes: 6 },
+    contrata: { es: 'videos/es/contrata.mp4', en: 'videos/en/contrata.mp4', fr: 'videos/fr/contrata.mp4', de: 'videos/de/contrata.mp4', pt: 'videos/pt/contrata.mp4', minutes: 15 }
 };
 
 function tracks(type, lang, langs) {
@@ -54,13 +39,10 @@ function tracks(type, lang, langs) {
     }));
 }
 
-// Resuelve rutas relativas frente a BASE_URL
 function abs(p) {
     if (!p) return '';
     if (p.startsWith('http') || p.startsWith('data:')) return p;
-    return p.startsWith('/')
-        ? import.meta.env.BASE_URL + p.replace(/^\/+/, '')
-        : import.meta.env.BASE_URL + p;
+    return p.startsWith('/') ? import.meta.env.BASE_URL + p.replace(/^\/+/, '') : import.meta.env.BASE_URL + p;
 }
 
 export default function App() {
@@ -68,23 +50,21 @@ export default function App() {
     const [lang, setLang] = useState('es');
     const [route, setRoute] = useState('home');
     const [type, setType] = useState(null);
-    const [participant, setParticipant] = useState(
-        () => JSON.parse(localStorage.getItem('participant') ?? '{}')
-    );
+    const [participant, setParticipant] = useState(() => JSON.parse(localStorage.getItem('participant') ?? '{}'));
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
-    const [generating, setGenerating] = useState(false); // freno a dobles ejecuciones
+    const [generating, setGenerating] = useState(false);
 
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
-    // Estado pasarelas
+    // Pasarelas
     const [policyOk, setPolicyOk] = useState(false);
-    const [privacyOk, setPrivacyOk] = useState(false); // GDPR
+    const [privacyOk, setPrivacyOk] = useState(false);
 
-    // Exención: registro previo válido
+    // Exención
     const [existingRecord, setExistingRecord] = useState(null);
 
-    // Inicialización por querystring
+    // Init por querystring
     useEffect(() => {
         const p = new URLSearchParams(location.search);
         if (p.get('lang')) setLang(p.get('lang'));
@@ -93,15 +73,11 @@ export default function App() {
         if (p.get('kiosk') === '1') {
             setKiosk(true);
             document.body.classList.add('kiosk');
-            if (document.fullscreenEnabled) {
-                document.documentElement.requestFullscreen().catch(() => { });
-            }
+            if (document.fullscreenEnabled) document.documentElement.requestFullscreen().catch(() => { });
         }
     }, []);
 
-    useEffect(() => {
-        if (cfg?.forceLang) setLang(cfg.forceLang);
-    }, [cfg?.forceLang]);
+    useEffect(() => { if (cfg?.forceLang) setLang(cfg.forceLang); }, [cfg?.forceLang]);
 
     useEffect(() => {
         if (!site) {
@@ -124,37 +100,16 @@ export default function App() {
                 route === 'video' ? 1 :
                     route === 'quiz' ? 2 : 3;
 
-    // BRANDING activo: site.brand > global.brand
-    const brand = useMemo(
-        () => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand ?? null),
-        [cfg, site]
-    );
+    const brand = useMemo(() => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand ?? null), [cfg, site]);
 
-    useEffect(() => {
-        if (brand?.primary) {
-            document.documentElement.style.setProperty('--brand', brand.primary);
-        }
-    }, [brand?.primary]);
+    useEffect(() => { if (brand?.primary) document.documentElement.style.setProperty('--brand', brand.primary); }, [brand?.primary]);
 
-    const startType = (t) => {
-        setType(t);
-        setRoute('form');
-        setExistingRecord(null);
-    };
+    const startType = (t) => { setType(t); setRoute('form'); setExistingRecord(null); };
 
-    // Descargar certificado por exención (si el registro es válido)
     async function downloadExistingCertificate(record) {
         const id = record?.certId ?? uuidv4();
         const issue = record?.issueISO ? new Date(record.issueISO) : new Date();
-        const expiry =
-            record?.expiryISO
-                ? new Date(record.expiryISO)
-                : (() => {
-                    const d = new Date(issue);
-                    d.setMonth(d.getMonth() + 36);
-                    return d;
-                })();
-
+        const expiry = record?.expiryISO ? new Date(record.expiryISO) : (() => { const d = new Date(issue); d.setMonth(d.getMonth() + 36); return d; })();
         const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
 
         const blob = await buildCertificate({
@@ -170,7 +125,6 @@ export default function App() {
             logoUrl: CERT_LOGO_URL
         });
 
-        // Descarga directa
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
@@ -178,7 +132,6 @@ export default function App() {
         a.click();
         URL.revokeObjectURL(url);
 
-        // Email en segundo plano (si está habilitado)
         try {
             if (cfg?.mail?.enabled) {
                 const b64 = await blobToBase64(blob);
@@ -187,26 +140,15 @@ export default function App() {
                         lang === 'pt' ? 'Certificado de Instruções de Segurança' :
                             lang === 'fr' ? 'Certificat de Sécurité' :
                                 lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
-                const html = `<p>${lang === 'es'
-                    ? 'Adjuntamos su certificado de inducción.'
-                    : 'Please find attached your induction certificate.'
-                    }</p>`;
+                const html = `<p>${lang === 'es' ? 'Adjuntamos su certificado de inducción.' : 'Please find attached your induction certificate.'}</p>`;
                 sendMail({
-                    apiBase: cfg?.mail?.apiBase,
-                    apiKey: cfg?.mail?.apiKey,
-                    to: participant?.email ?? record?.email,
-                    cc: cfg?.mail?.cc ?? [],
-                    subject: subj,
-                    html,
+                    apiBase: cfg?.mail?.apiBase, apiKey: cfg?.mail?.apiKey, to: participant?.email ?? record?.email, cc: cfg?.mail?.cc ?? [], subject: subj, html,
                     attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
                 }).catch(() => { });
             }
-        } catch (e) {
-            console.error('sendMail (exemption) error', e);
-        }
+        } catch (e) { console.error('sendMail (exemption) error', e); }
 
         setRoute('done');
-        // RGPD: limpiar PII local tras finalizar
         try { localStorage.removeItem('participant'); } catch { }
     }
 
@@ -224,101 +166,65 @@ export default function App() {
             return;
         }
 
-        // Política leída/aceptada
         const siteCfg = site ? cfg.sites?.[site] : null;
+
+        // Política
         const policyCfg = siteCfg?.policy ?? cfg?.policy;
         const policyUrl = policyCfg?.url;
         if (policyUrl && !policyOk) {
-            alert(
-                lang === 'es'
-                    ? 'Debes leer y aceptar la Política antes de continuar.'
-                    : 'You must read and acknowledge the Policy before continuing.'
-            );
+            alert(lang === 'es' ? 'Debes leer y aceptar la Política antes de continuar.' : 'You must read and acknowledge the Policy before continuing.');
             return;
         }
 
-        // RGPD: Privacidad aceptada (sin vista previa embebida)
+        // GDPR mínimo (solo aceptación)
         const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
         if ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk) {
-            alert(
-                lang === 'es'
-                    ? 'Debes aceptar el Aviso de privacidad antes de continuar.'
-                    : 'You must accept the Privacy Notice before continuing.'
-            );
+            alert(lang === 'es' ? 'Debes aceptar el Aviso de privacidad antes de continuar.' : 'You must accept the Privacy Notice before continuing.');
             return;
         }
 
-        // Guardar datos
         setParticipant(data);
         localStorage.setItem('participant', JSON.stringify(data));
 
-        // Chequeo remoto previo (exención)
+        // Exención
         const validityMonths = cfg?.registry?.months ?? 36;
         const apiBase = cfg?.registry?.apiBase;
         const apiKey = cfg?.registry?.apiKey;
         try {
             if (apiBase) {
-                const r = await checkRemote({
-                    apiBase,
-                    months: validityMonths,
-                    dni: data.idDoc,
-                    email: data.email,
-                    apiKey
-                });
-                if (r?.found && r?.isValid) {
-                    setExistingRecord(r.record);
-                    return; // el usuario decide descargar / continuar / cambiar datos
-                }
+                const r = await checkRemote({ apiBase, months: validityMonths, dni: data.idDoc, email: data.email, apiKey });
+                if (r?.found && r?.isValid) { setExistingRecord(r.record); return; }
             }
-        } catch (err) {
-            console.warn('Remote check failed, continue locally', err);
-        }
+        } catch (err) { console.warn('Remote check failed, continue locally', err); }
 
         setRoute('video');
     };
 
     const onVideoFinished = () => setRoute('quiz');
 
-    // Descarga inmediata, mail/registro en background y freno contra doble ejecución
     const onQuizPassed = async () => {
-        if (generating) return; // evita dobles ejecuciones por doble clic
+        if (generating) return;
         setGenerating(true);
         try {
             const id = uuidv4();
             const issue = new Date();
-            const expiry = new Date(issue);
-            expiry.setMonth(expiry.getMonth() + 36);
-
+            const expiry = new Date(issue); expiry.setMonth(expiry.getMonth() + 36);
             const verifyUrl = `${location.origin}${location.pathname}?id=${id}`;
 
-            // Persistencia de vigencia local
             const certs = JSON.parse(localStorage.getItem('certs') ?? '[]');
             certs.push({ id, expiry: expiry.toISOString() });
             localStorage.setItem('certs', JSON.stringify(certs));
 
-            // Generar PDF (simple y rápido)
             const blob = await buildCertificate({
-                lang,
-                name: participant.name,
-                idDoc: participant.idDoc,
-                company: participant.company,
-                type,
-                certId: id,
-                issueDate: issue.toLocaleDateString(lang),
-                expiryDate: expiry.toLocaleDateString(lang),
-                verifyUrl,
-                logoUrl: CERT_LOGO_URL
+                lang, name: participant.name, idDoc: participant.idDoc, company: participant.company, type,
+                certId: id, issueDate: issue.toLocaleDateString(lang), expiryDate: expiry.toLocaleDateString(lang), verifyUrl, logoUrl: CERT_LOGO_URL
             });
 
-            // Descarga INMEDIATA
             const url = URL.createObjectURL(blob);
             const a = document.createElement('a');
-            a.href = url;
-            a.download = `certificado-${id}.pdf`;
-            a.click();
+            a.href = url; a.download = `certificado-${id}.pdf`; a.click();
             URL.revokeObjectURL(url);
 
-            // Email + upsert remoto EN SEGUNDO PLANO (no bloquea la UX)
             try {
                 if (cfg?.mail?.enabled) {
                     blobToBase64(blob)
@@ -328,50 +234,28 @@ export default function App() {
                                     lang === 'pt' ? 'Certificado de Instruções de Segurança' :
                                         lang === 'fr' ? 'Certificat de Sécurité' :
                                             lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
-                            const html = `<p>${lang === 'es'
-                                ? 'Adjuntamos su certificado de inducción.'
-                                : 'Please find attached your induction certificate.'
-                                }</p>`;
+                            const html = `<p>${lang === 'es' ? 'Adjuntamos su certificado de inducción.' : 'Please find attached your induction certificate.'}</p>`;
                             return sendMail({
-                                apiBase: cfg?.mail?.apiBase,
-                                apiKey: cfg?.mail?.apiKey,
-                                to: participant.email,
-                                cc: cfg?.mail?.cc ?? [],
-                                subject: subj,
-                                html,
-                                attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
+                                apiBase: cfg?.mail?.apiBase, apiKey: cfg?.mail?.apiKey, to: participant.email, cc: cfg?.mail?.cc ?? [],
+                                subject: subj, html, attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
                             });
                         })
                         .catch((e) => console.error('sendMail error', e));
                 }
-
                 if (cfg?.registry?.apiBase) {
                     upsertRemote({
                         apiBase: cfg.registry.apiBase,
                         payload: {
-                            apiKey: cfg?.registry?.apiKey ?? '',
-                            dni: participant.idDoc,
-                            email: participant.email,
-                            name: participant.name,
-                            company: participant.company,
-                            site,
-                            type,
-                            certId: id,
-                            issueDate: issue.toISOString(),
-                            expiryDate: expiry.toISOString()
+                            apiKey: cfg?.registry?.apiKey ?? '', dni: participant.idDoc, email: participant.email, name: participant.name,
+                            company: participant.company, site, type, certId: id, issueDate: issue.toISOString(), expiryDate: expiry.toISOString()
                         }
                     }).catch((e) => console.error('upsertRemote error', e));
                 }
-            } catch (err) {
-                console.error(err);
-            }
+            } catch (err) { console.error(err); }
 
             setRoute('done');
-            // RGPD: limpiar PII local tras finalizar
             try { localStorage.removeItem('participant'); } catch { }
-        } finally {
-            setGenerating(false);
-        }
+        } finally { setGenerating(false); }
     };
 
     if (!cfg) return <div style={{ padding: 24 }}>Cargando configuración…</div>;
@@ -384,19 +268,16 @@ export default function App() {
     const subTracks = tracks(type, lang, enabledLangs);
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
 
-    // Datos de Política (site > global) para PolicyGate
+    // Política
     const policyCfg = siteCfg?.policy ?? cfg?.policy;
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
 
-    // RGPD: datos de Privacidad (site > global) para botón de abrir + check
+    // GDPR (para botón Abrir)
     const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
-    const privacyTitle =
-        sitePrivacyCfg?.title?.[lang] ??
-        sitePrivacyCfg?.title?.['es'] ??
+    const privacyTitle = sitePrivacyCfg?.title?.[lang] ?? sitePrivacyCfg?.title?.['es'] ??
         (lang === 'es' ? 'Aviso de privacidad (RGPD)' : 'Privacy Notice (GDPR)');
 
-    // Soporta string u objeto por idioma en config.json
     const privacyUrlRaw =
         typeof sitePrivacyCfg?.url === 'string'
             ? sitePrivacyCfg.url
@@ -408,21 +289,10 @@ export default function App() {
         return (
             <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
                 <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
-                    {brandLogo && (
-                        <img
-                            src={brandLogo}
-                            alt={brand?.name ?? 'Logo'}
-                            style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }}
-                        />
-                    )}
+                    {brandLogo && <img src={brandLogo} alt={brand?.name ?? 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
                     <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? c.title ?? 'Inducción'}</h1>
                     <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
-                    <AdminBtn
-                        onClick={async () => {
-                            const ok = await ensureAdmin();
-                            if (ok) setRoute('admin');
-                        }}
-                    />
+                    <AdminBtn onClick={async () => { const ok = await ensureAdmin(); if (ok) setRoute('admin'); }} />
                 </header>
                 <Verify c={c} />
             </div>
@@ -440,31 +310,13 @@ export default function App() {
     return (
         <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
             <header style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
-                {brandLogo && (
-                    <img
-                        src={brandLogo}
-                        alt={brand?.name ?? 'Logo'}
-                        style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }}
-                    />
-                )}
+                {brandLogo && <img src={brandLogo} alt={brand?.name ?? 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
                 <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? c.title ?? 'Inducción'}</h1>
                 <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
                 <SitePicker cfg={cfg} site={site} setSite={setSite} />
-                <AdminBtn
-                    onClick={async () => {
-                        const ok = await ensureAdmin();
-                        if (ok) setRoute('admin');
-                    }}
-                />
+                <AdminBtn onClick={async () => { const ok = await ensureAdmin(); if (ok) setRoute('admin'); }} />
                 {kiosk && document.fullscreenElement && (
-                    <button
-                        className="btn btn-outline"
-                        style={{ marginLeft: 'auto' }}
-                        onClick={() => {
-                            document.exitFullscreen?.();
-                            location.replace(location.pathname);
-                        }}
-                    >
+                    <button className="btn btn-outline" style={{ marginLeft: 'auto' }} onClick={() => { document.exitFullscreen?.(); location.replace(location.pathname); }}>
                         Salir kiosco
                     </button>
                 )}
@@ -480,18 +332,14 @@ export default function App() {
                         <span className="badge">{c.visitBadge}</span>
                         <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.visitTitle}</h3>
                         <p style={{ color: '#475569' }}>{c.visitDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>
-                            {c.visitBtn}
-                        </button>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>{c.visitBtn}</button>
                     </section>
 
                     <section className="card">
                         <span className="badge">{c.contractorBadge}</span>
                         <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.contractorTitle}</h3>
                         <p style={{ color: '#475569' }}>{c.contractorDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>
-                            {c.contractorBtn}
-                        </button>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>{c.contractorBtn}</button>
                     </section>
                 </div>
             )}
@@ -521,22 +369,10 @@ export default function App() {
                                 <button className="btn" onClick={() => downloadExistingCertificate(existingRecord)}>
                                     {lang === 'es' ? 'Descargar certificado' : 'Download certificate'}
                                 </button>
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => {
-                                        setExistingRecord(null);
-                                        setRoute('video');
-                                    }}
-                                >
+                                <button className="btn btn-outline" onClick={() => { setExistingRecord(null); setRoute('video'); }}>
                                     {lang === 'es' ? 'Continuar igualmente' : 'Continue anyway'}
                                 </button>
-                                <button
-                                    className="btn btn-outline"
-                                    onClick={() => {
-                                        setExistingRecord(null);
-                                        // deja al usuario editar campos
-                                    }}
-                                >
+                                <button className="btn btn-outline" onClick={() => { setExistingRecord(null); /* editar campos */ }}>
                                     {lang === 'es' ? 'Cambiar datos' : 'Change data'}
                                 </button>
                             </div>
@@ -545,14 +381,7 @@ export default function App() {
 
                     <form className="card" style={{ display: 'grid', gap: 12 }} onSubmit={onFormSubmit}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, color: '#64748b' }}>
-                            <button
-                                type="button"
-                                className="btn btn-outline"
-                                onClick={() => {
-                                    setRoute('home');
-                                    setType(null);
-                                }}
-                            >
+                            <button type="button" className="btn btn-outline" onClick={() => { setRoute('home'); setType(null); }}>
                                 ← {lang === 'es' ? 'Volver' : 'Back'}
                             </button>
                             <span />
@@ -560,79 +389,46 @@ export default function App() {
                         </div>
 
                         <Field label={c.fields.name}>
-                            <input
-                                name="name"
-                                defaultValue={participant?.name ?? ''}
-                                className="border rounded"
-                                style={{ padding: '8px 12px', width: '100%' }}
-                                required
-                            />
+                            <input name="name" defaultValue={participant?.name ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
                         <Field label={c.fields.id}>
-                            <input
-                                name="idDoc"
-                                defaultValue={participant?.idDoc ?? ''}
-                                className="border rounded"
-                                style={{ padding: '8px 12px', width: '100%' }}
-                                required
-                            />
+                            <input name="idDoc" defaultValue={participant?.idDoc ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
                         <Field label={c.fields.company}>
-                            <input
-                                name="company"
-                                defaultValue={participant?.company ?? ''}
-                                className="border rounded"
-                                style={{ padding: '8px 12px', width: '100%' }}
-                                required
-                            />
+                            <input name="company" defaultValue={participant?.company ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
                         <Field label={c.fields.email}>
-                            <input
-                                type="email"
-                                name="email"
-                                defaultValue={participant?.email ?? ''}
-                                className="border rounded"
-                                style={{ padding: '8px 12px', width: '100%' }}
-                                required
-                            />
+                            <input type="email" name="email" defaultValue={participant?.email ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        {/* GDPR mínimo: botón “Abrir aviso” + check de aceptación (sin vista previa/scroll) */}
-                        {(sitePrivacyCfg?.mustAcknowledge ?? true) && (
-                            <div style={{ display: 'grid', gap: 8 }}>
-                                {privacyUrlAbs && (
-                                    <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                                        <button
-                                            type="button"
-                                            className="btn btn-outline"
-                                            onClick={() => window.open(privacyUrlAbs, '_blank', 'noopener,noreferrer')}
-                                        >
-                                            {c.privacy?.openDoc ?? (lang === 'es' ? 'Abrir aviso' : 'Open notice')}
-                                        </button>
-                                        <span style={{ fontSize: 13, color: '#64748b' }}>
-                                            {c.privacy?.mustRead ?? (lang === 'es' ? 'Debes revisar el aviso completo.' : 'You must review the entire notice.')}
-                                        </span>
-                                    </div>
-                                )}
-
-                                <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                                    <input
-                                        type="checkbox"
-                                        checked={privacyOk}
-                                        onChange={(e) => setPrivacyOk(e.target.checked)}
-                                    />
-                                    <span>
-                                        {c.privacy?.ackLabel ??
-                                            (lang === 'es'
-                                                ? 'He leído y acepto el Aviso de privacidad (RGPD).'
-                                                : 'I have read and accept the Privacy Notice (GDPR).')}
+                        {/* GDPR mínimo: botón “Abrir aviso” (si hay URL) + checkbox de aceptación */}
+                        <div style={{ display: 'grid', gap: 8 }}>
+                            {privacyUrlAbs && (
+                                <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+                                    <button
+                                        type="button"
+                                        className="btn btn-outline"
+                                        onClick={() => window.open(privacyUrlAbs, '_blank', 'noopener,noreferrer')}
+                                    >
+                                        {c.privacy?.openDoc ?? (lang === 'es' ? 'Abrir aviso' : 'Open notice')}
+                                    </button>
+                                    <span style={{ fontSize: 13, color: '#64748b' }}>
+                                        {c.privacy?.mustRead ?? (lang === 'es' ? 'Debes revisar el aviso completo.' : 'You must review the entire notice.')}
                                     </span>
-                                </label>
-                            </div>
-                        )}
+                                </div>
+                            )}
+
+                            <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                                <input type="checkbox" checked={privacyOk} onChange={(e) => setPrivacyOk(e.target.checked)} />
+                                <span>
+                                    {c.privacy?.ackLabel ??
+                                        (lang === 'es' ? 'He leído y acepto el Aviso de privacidad (RGPD).' : 'I have read and accept the Privacy Notice (GDPR).')}
+                                </span>
+                            </label>
+                        </div>
 
                         {/* Pasarela de Política (Calidad y Seguridad Alimentaria) */}
                         {policyUrlAbs && (
@@ -647,11 +443,11 @@ export default function App() {
                             />
                         )}
 
-                        {/* Botón bloqueado si no se han aceptado los documentos requeridos */}
+                        {/* Botón bloqueado si no se han aceptado ambas (GDPR y Política) */}
                         <button
                             className="btn"
                             type="submit"
-                            disabled={(policyUrlAbs && !policyOk) || ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk)}
+                            disabled={(policyUrlAbs && !policyOk) || (!privacyOk)}
                         >
                             {c.startVideo}
                         </button>
@@ -663,17 +459,9 @@ export default function App() {
                 <div className="card" style={{ marginTop: 24 }}>
                     <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{c.videoTitle?.[type]}</h3>
                     <p style={{ color: '#475569', marginBottom: 12 }}>{c.mustWatch}</p>
-                    <VideoGate
-                        src={videoUrl}
-                        tracks={subTracks}
-                        allowSeek={!!cfg.allowSeek}
-                        allowSubtitles={!!cfg.allowSubtitles}
-                        onDone={onVideoFinished}
-                    />
+                    <VideoGate src={videoUrl} tracks={subTracks} allowSeek={!!cfg.allowSeek} allowSubtitles={!!cfg.allowSubtitles} onDone={onVideoFinished} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
-                        <button className="btn btn-outline" onClick={() => setRoute('form')}>
-                            ← {lang === 'es' ? 'Atrás' : 'Back'}
-                        </button>
+                        <button className="btn btn-outline" onClick={() => setRoute('form')}>← {lang === 'es' ? 'Atrás' : 'Back'}</button>
                         <span style={{ fontSize: 14, color: '#64748b' }}>
                             {(fallbackVideos?.[type]?.minutes ?? cfg?.videos?.[type]?.minutes ?? 0)} min
                         </span>
@@ -689,10 +477,7 @@ export default function App() {
                         checkLabel={c.checkBtn}
                         wrongLabel={c.wrong}
                         onPass={onQuizPassed}
-                        onRetry={() => {
-                            setRoute('home');
-                            setType(null);
-                        }}
+                        onRetry={() => { setRoute('home'); setType(null); }}
                         retryLabel={c.finishAndRetry ?? (lang === 'es' ? 'Finalizar y nuevo intento' : 'Finish & New attempt')}
                     />
                 </div>
@@ -702,14 +487,7 @@ export default function App() {
                 <div className="card" style={{ marginTop: 24 }}>
                     <p style={{ fontSize: 18 }}>{c.done}</p>
                     <p style={{ color: '#475569' }}>{c.verifyHint}</p>
-                    <button
-                        className="btn"
-                        style={{ marginTop: 12 }}
-                        onClick={() => {
-                            setRoute('home');
-                            setType(null);
-                        }}
-                    >
+                    <button className="btn" style={{ marginTop: 12 }} onClick={() => { setRoute('home'); setType(null); }}>
                         {c.finish ?? (lang === 'es' ? 'Finalizar' : 'Finish')}
                     </button>
                 </div>
@@ -729,16 +507,9 @@ function Field({ label, children }) {
 
 function LangPicker({ lang, setLang, langs }) {
     return (
-        <select
-            value={lang}
-            onChange={(e) => setLang(e.target.value)}
-            className="border rounded"
-            style={{ padding: '4px 8px' }}
-        >
+        <select value={lang} onChange={(e) => setLang(e.target.value)} className="border rounded" style={{ padding: '4px 8px' }}>
             {langs.map((l) => (
-                <option key={l} value={l}>
-                    {LANG_LABEL[l]}
-                </option>
+                <option key={l} value={l}>{LANG_LABEL[l]}</option>
             ))}
         </select>
     );
@@ -748,16 +519,9 @@ function SitePicker({ cfg, site, setSite }) {
     const sites = Object.keys(cfg?.sites ?? {});
     if (!sites.length) return null;
     return (
-        <select
-            value={site}
-            onChange={(e) => setSite(e.target.value)}
-            className="border rounded"
-            style={{ padding: '4px 8px' }}
-        >
+        <select value={site} onChange={(e) => setSite(e.target.value)} className="border rounded" style={{ padding: '4px 8px' }}>
             {sites.map((s) => (
-                <option key={s} value={s}>
-                    {s}
-                </option>
+                <option key={s} value={s}>{s}</option>
             ))}
         </select>
     );
@@ -769,4 +533,5 @@ function AdminBtn({ onClick }) {
             Admin
         </button>
     );
+
 }
