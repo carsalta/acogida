@@ -28,11 +28,20 @@
     "newStart": "New attempt",
     "finish": "Finish",
     "finishAndRetry": "Finish & New attempt",
+
     "verifyPage": {
         "checking": "Checking…",
         "valid": "✓ Certificate valid",
         "expired": "⚠ Certificate expired",
         "notfound": "✖ Not found"
+    },
+
+    // ➕ New GDPR block for PolicyGate
+    "privacy": {
+        "openDoc": "Open notice",
+        "mustRead": "You must review the entire notice.",
+        "ackLabel": "I have read and accept the Privacy Notice (GDPR).",
+        "scrollHint": "Scroll to the end of the notice to enable acknowledgment."
     },
 
     "policy": {
@@ -47,7 +56,7 @@
         "visita": [
             {
                 "id": "v1",
-                "text": "If the evacuation alarm sounds, you should go to...",
+                "text": "If the evacuation alarm sounds, you should go to…",
                 "options": [
                     "The meeting point",
                     "Outside the plant, in a place where there are no risks."
@@ -56,7 +65,7 @@
             },
             {
                 "id": "v2",
-                "text": "Is eating permitted...",
+                "text": "Is eating permitted…?",
                 "options": [
                     "Anywhere in the factory area",
                     "Only at points authorized for this purpose"
@@ -68,7 +77,7 @@
                 "text": "What should you do before entering production areas?",
                 "options": [
                     "Wash hands",
-                    "Turn off mobile phone"
+                    "Turn off the mobile phone"
                 ],
                 "correct": 0
             },
@@ -95,7 +104,7 @@
         "contrata": [
             {
                 "id": "c01",
-                "text": "In case the evacuation alarm rings you should go to…",
+                "text": "If the evacuation alarm sounds you should go to…",
                 "options": [
                     "The meeting point",
                     "The exterior of the factory, in a place where there are no risks"
@@ -104,16 +113,16 @@
             },
             {
                 "id": "c02",
-                "text": "Is hearing protection used inside the centre of Danone?",
+                "text": "Is hearing protection used inside the centre?",
                 "options": [
-                    "Yes, it is mandatory in the signed areas",
-                    "No, is not mandatory because the work has a short duration"
+                    "Yes, it is mandatory in the signposted areas",
+                    "No, it is not mandatory because the work has a short duration"
                 ],
                 "correct": 0
             },
             {
                 "id": "c03",
-                "text": "Jewelry and using make-up in production areas is permitted?",
+                "text": "Is wearing jewelry or make-up permitted in production areas?",
                 "options": [
                     "No, it's not",
                     "Yes, it is"
@@ -122,7 +131,7 @@
             },
             {
                 "id": "c04",
-                "text": "Who must provide you the PPE necessary for your work?",
+                "text": "Who must provide the PPE necessary for your work?",
                 "options": [
                     "My company",
                     "DANONE S.A."
@@ -131,7 +140,7 @@
             },
             {
                 "id": "c05",
-                "text": "Have you received information about risks of your task and in the places where you develop your work?",
+                "text": "Have you received information about the risks of your task and the areas where you will perform your work?",
                 "options": [
                     "Yes, I have",
                     "No, I haven’t"
@@ -140,9 +149,9 @@
             },
             {
                 "id": "c06",
-                "text": "Is the use of tools in a bad condition or without a CE marking permitted?",
+                "text": "Is the use of tools in poor condition or without a CE marking permitted?",
                 "options": [
-                    "Only with a previous deficiencies evaluation",
+                    "Only with a prior deficiencies evaluation",
                     "No, it isn’t in any case."
                 ],
                 "correct": 1
@@ -152,13 +161,13 @@
                 "text": "When you perform a job in an area you should…",
                 "options": [
                     "Keep your work area tidy and clean during the work being carried out.",
-                    "Leave everything tidy when you finished"
+                    "Leave everything tidy when you finish"
                 ],
                 "correct": 0
             },
             {
                 "id": "c08",
-                "text": "When you perform actions such as welding or working with fire or working in confined spaces (for example working inside deposits), working at height, lock out tag out…",
+                "text": "When you perform actions such as welding or hot work, working in confined spaces (e.g., inside tanks), working at height, Lockout/Tagout (LOTO)…",
                 "options": [
                     "You must check the equipment is in good condition.",
                     "You must request and follow every step included in the work permit."
@@ -167,7 +176,7 @@
             },
             {
                 "id": "c09",
-                "text": "Is cutting energy supply to lock all energy sources when you perform an intervention in a machine necessary?",
+                "text": "Is it necessary to cut off and lock out all energy sources when you intervene on a machine?",
                 "options": [
                     "Yes, it always is necessary",
                     "No, it isn’t if I am the only one doing the job"
@@ -179,7 +188,7 @@
                 "text": "The use of safety harness and helmet with chin protection are obligatory…",
                 "options": [
                     "Always when working at height.",
-                    "Always when working at a height of more than 2m."
+                    "Always when working at a height of more than 2 m."
                 ],
                 "correct": 1
             },
@@ -190,24 +199,24 @@
                     "Designate the work area with fences",
                     "Designate the work area with cones",
                     "It is completely forbidden to perform work at height in these areas",
-                    "No previous answers are correct"
+                    "None of the previous answers is correct"
                 ],
                 "correct": 1
             },
             {
                 "id": "c12",
-                "text": "It is forbidden to ...",
+                "text": "It is forbidden to…",
                 "options": [
                     "Work or stop between LGVs and their loading or unloading area",
                     "Be above or under LGVs forks when they are lifted",
-                    "Access LGVs area for all unauthorized personnel",
+                    "Access to the LGVs area by unauthorized personnel",
                     "All of the above answers are correct"
                 ],
                 "correct": 3
             },
             {
                 "id": "c13",
-                "text": "Eating is permitted…",
+                "text": "Is eating permitted…?",
                 "options": [
                     "Anywhere in the factory area",
                     "Only at points authorized for this purpose"
@@ -216,7 +225,7 @@
             },
             {
                 "id": "c14",
-                "text": "What should you do before accessing to production areas?",
+                "text": "What should you do before accessing production areas?",
                 "options": [
                     "Wash hands",
                     "Turn off mobile phone"
@@ -234,10 +243,10 @@
             },
             {
                 "id": "c16",
-                "text": "How should you dress when entering production area?",
+                "text": "How should you dress when entering production areas?",
                 "options": [
                     "With safety shoes, long trousers without upper pockets and long-sleeved shirt without open collar or buttons",
-                    "With safety shoes, long trousers without upper pockets, long-sleeved shirt without open collar or buttons, hat that covers all hair, also, if you have beard or mustache cover them."
+                    "With safety shoes, long trousers without upper pockets, long-sleeved shirt without open collar or buttons, hat that covers all hair; if you have a beard or mustache, cover them."
                 ],
                 "correct": 1
             },
@@ -263,4 +272,3 @@
         ]
     }
 }
-    

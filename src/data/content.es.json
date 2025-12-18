@@ -34,7 +34,16 @@
         "expired": "⚠ Certificado caducado",
         "notfound": "✖ No encontrado"
 
-    },
+},
+
+    // ➕ Nuevo bloque RGPD para usar con PolicyGate
+    "privacy": {
+        "openDoc": "Abrir aviso",
+        "mustRead": "Debes revisar el aviso completo.",
+        "ackLabel": "He leído y acepto el Aviso de privacidad (RGPD).",
+        "scrollHint": "Desplázate hasta el final del aviso para habilitar la aceptación."
+    
+},
     "policy": {
         "header": "Política y Compromiso de Calidad y Seguridad Alimentaria",
         "openDoc": "Abrir documento",

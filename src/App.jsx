@@ -73,12 +73,13 @@ export default function App() {
     );
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
-    const [generating, setGenerating] = useState(false); // ⬅️ NUEVO: freno a dobles ejecuciones
+    const [generating, setGenerating] = useState(false); // ⬅️ freno a dobles ejecuciones
 
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
-    // Estado pasarela de política
+    // Estado pasarelas
     const [policyOk, setPolicyOk] = useState(false);
+    const [privacyOk, setPrivacyOk] = useState(false); // ⬅️ RGPD
 
     // Exención: registro previo válido
     const [existingRecord, setExistingRecord] = useState(null);
@@ -187,8 +188,8 @@ export default function App() {
                             lang === 'fr' ? 'Certificat de Sécurité' :
                                 lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
                 const html = `<p>${lang === 'es'
-                        ? 'Adjuntamos su certificado de inducción.'
-                        : 'Please find attached your induction certificate.'
+                    ? 'Adjuntamos su certificado de inducción.'
+                    : 'Please find attached your induction certificate.'
                     }</p>`;
                 sendMail({
                     apiBase: cfg?.mail?.apiBase,
@@ -205,6 +206,8 @@ export default function App() {
         }
 
         setRoute('done');
+        // RGPD: limpiar PII local tras finalizar
+        try { localStorage.removeItem('participant'); } catch { }
     }
 
     const onFormSubmit = async (e) => {
@@ -230,6 +233,16 @@ export default function App() {
                 lang === 'es'
                     ? 'Debes leer y aceptar la Política antes de continuar.'
                     : 'You must read and acknowledge the Policy before continuing.'
+            );
+            return;
+        }
+
+        // RGPD: Privacidad leída/aceptada
+        if (cfg?.privacy?.url && !privacyOk) {
+            alert(
+                lang === 'es'
+                    ? 'Debes leer y aceptar el Aviso de privacidad antes de continuar.'
+                    : 'You must read and acknowledge the Privacy Notice before continuing.'
             );
             return;
         }
@@ -265,9 +278,9 @@ export default function App() {
 
     const onVideoFinished = () => setRoute('quiz');
 
-    // NUEVO: descarga inmediata, mail/registro en background y freno contra doble ejecución
+    // Descarga inmediata, mail/registro en background y freno contra doble ejecución
     const onQuizPassed = async () => {
-        if (generating) return;        // evita dobles ejecuciones por doble clic
+        if (generating) return; // evita dobles ejecuciones por doble clic
         setGenerating(true);
         try {
             const id = uuidv4();
@@ -315,8 +328,8 @@ export default function App() {
                                         lang === 'fr' ? 'Certificat de Sécurité' :
                                             lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
                             const html = `<p>${lang === 'es'
-                                    ? 'Adjuntamos su certificado de inducción.'
-                                    : 'Please find attached your induction certificate.'
+                                ? 'Adjuntamos su certificado de inducción.'
+                                : 'Please find attached your induction certificate.'
                                 }</p>`;
                             return sendMail({
                                 apiBase: cfg?.mail?.apiBase,
@@ -353,6 +366,8 @@ export default function App() {
             }
 
             setRoute('done');
+            // RGPD: limpiar PII local tras finalizar
+            try { localStorage.removeItem('participant'); } catch { }
         } finally {
             setGenerating(false);
         }
@@ -372,6 +387,20 @@ export default function App() {
     const policyCfg = siteCfg?.policy ?? cfg?.policy;
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
+
+    // RGPD: datos de Privacidad (global)
+
+    const privacyCfg = cfg?.privacy;
+    const privacyTitle =
+        privacyCfg?.title?.[lang] ??
+        privacyCfg?.title?.['es'] ??
+        (lang === 'es' ? 'Aviso de privacidad' : 'Privacy Notice');
+
+    // Soporta string o objeto por idioma
+    const privacyUrlRaw = (typeof privacyCfg?.url === 'string')
+        ? privacyCfg.url
+        : (privacyCfg?.url?.[lang] ?? privacyCfg?.url?.['es'] ?? '');
+
 
     if (route === 'verify') {
         return (
@@ -569,7 +598,20 @@ export default function App() {
                             />
                         </Field>
 
-                        {/* Pasarela de Política */}
+                        {/* Pasarela de Privacidad (RGPD) */}
+                        {privacyUrlAbs && (
+                            <PolicyGate
+                                title={privacyTitle}
+                                url={privacyUrlAbs}
+                                mustScroll={!!privacyCfg?.mustScroll}
+                                mustAcknowledge={!!privacyCfg?.mustAcknowledge}
+                                labels={c.privacy || {}}
+                                isKiosk={kiosk}
+                                onStatusChange={(ok) => setPrivacyOk(ok)}
+                            />
+                        )}
+
+                        {/* Pasarela de Política (Calidad y Seguridad Alimentaria) */}
                         {policyUrlAbs && (
                             <PolicyGate
                                 title={policyTitle}
@@ -582,8 +624,12 @@ export default function App() {
                             />
                         )}
 
-                        {/* Botón bloqueado si no se ha leído/aceptado */}
-                        <button className="btn" type="submit" disabled={policyUrlAbs ? !policyOk : false}>
+                        {/* Botón bloqueado si no se han leído/aceptado los documentos requeridos */}
+                        <button
+                            className="btn"
+                            type="submit"
+                            disabled={(policyUrlAbs && !policyOk) || (privacyUrlAbs && !privacyOk)}
+                        >
                             {c.startVideo}
                         </button>
                     </form>
