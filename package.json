@@ -9,7 +9,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "jspdf": "^3.0.3",
+    "jspdf": "^4.0.0",
     "pdfjs": "^2.5.4",
     "qrcode": "^1.5.4",
     "react": "^18.2.0",
