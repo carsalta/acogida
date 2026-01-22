@@ -54,12 +54,14 @@ export default function App() {
     const [site, setSite] = useState('');
     const [kiosk, setKiosk] = useState(false);
     const [generating, setGenerating] = useState(false);
-
     const enabledLangs = useMemo(() => getEnabledLangs(cfg), [cfg]);
 
     // Pasarelas
     const [policyOk, setPolicyOk] = useState(false);
     const [privacyOk, setPrivacyOk] = useState(false);
+
+    // ✅ NUEVO: aceptación de declaraciones (salud + tarjeta identificativa)
+    const [ackExtra, setAckExtra] = useState(false);
 
     // Exención
     const [existingRecord, setExistingRecord] = useState(null);
@@ -86,7 +88,43 @@ export default function App() {
         }
     }, [cfg, site]);
 
+    // Contenidos base por idioma
     const c = useMemo(() => getContent(lang), [lang]);
+
+    // ✅ Parche UI ES: “Contrata” → “Colaborador” (sin cambiar claves ni 'type')
+    const cc = useMemo(() => {
+        if (lang !== 'es' || !c) return c;
+        try {
+            return {
+                ...c,
+                contractorBadge: 'Colaboradores',
+                contractorTitle: 'Soy COLABORADOR (15 min)',
+                contractorBtn: 'Empezar como COLABORADOR',
+                videoTitle: { ...(c.videoTitle ?? {}), contrata: 'Vídeo para Colaboradores' }
+            };
+        } catch {
+            return c;
+        }
+    }, [c, lang]);
+
+    // Textos del check según idioma global
+    const tAck = lang === 'es'
+        ? {
+            title: 'Declaraciones obligatorias',
+            lines: [
+                'Declaro que, en caso de ser portador de alguna enfermedad infecciosa o de transmisión alimentaria, lo comunicaré a la fábrica antes de mi llegada.',
+                'Cuando se me proporcione la tarjeta identificativa en control de accesos de la fábrica, me comprometo a llevarla durante toda la jornada en un lugar visible para todo el personal de Danone.'
+            ],
+            mustAck: 'Debes aceptar las declaraciones para continuar.'
+        }
+        : {
+            title: 'Mandatory declarations',
+            lines: [
+                'I declare that, if I am a carrier of any infectious or foodborne disease, I will inform the factory before my arrival.',
+                'When I am provided with the identification badge at the factory access control, I commit to wear it throughout the day in a place visible to all Danone personnel.'
+            ],
+            mustAck: 'You must accept the declarations to continue.'
+        };
 
     const steps =
         lang === 'es' ? stepsES :
@@ -101,10 +139,9 @@ export default function App() {
                     route === 'quiz' ? 2 : 3;
 
     const brand = useMemo(() => (site && cfg?.sites?.[site]?.brand ? cfg.sites[site].brand : cfg?.brand ?? null), [cfg, site]);
-
     useEffect(() => { if (brand?.primary) document.documentElement.style.setProperty('--brand', brand.primary); }, [brand?.primary]);
 
-    const startType = (t) => { setType(t); setRoute('form'); setExistingRecord(null); };
+    const startType = (t) => { setType(t); setRoute('form'); setExistingRecord(null); setAckExtra(false); };
 
     async function downloadExistingCertificate(record) {
         const id = record?.certId ?? uuidv4();
@@ -142,7 +179,9 @@ export default function App() {
                                 lang === 'de' ? 'Sicherheitszertifikat' : 'Induction Certificate';
                 const html = `<p>${lang === 'es' ? 'Adjuntamos su certificado de inducción.' : 'Please find attached your induction certificate.'}</p>`;
                 sendMail({
-                    apiBase: cfg?.mail?.apiBase, apiKey: cfg?.mail?.apiKey, to: participant?.email ?? record?.email, cc: cfg?.mail?.cc ?? [], subject: subj, html,
+                    apiBase: cfg?.mail?.apiBase, apiKey: cfg?.mail?.apiKey,
+                    to: participant?.email ?? record?.email, cc: cfg?.mail?.cc ?? [],
+                    subject: subj, html,
                     attachment: { name: `certificado-${id}.pdf`, mime: 'application/pdf', contentBase64: b64 }
                 }).catch(() => { });
             }
@@ -179,7 +218,13 @@ export default function App() {
         // GDPR mínimo (solo aceptación)
         const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
         if ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk) {
-            alert(lang === 'es' ? 'Debes aceptar el Aviso de privacidad antes de continuar.' : 'You must accept the Privacy Notice before continuing.');
+            alert(lang === 'es' ? 'Debes aceptar el Aviso de privacidad (RGPD) antes de continuar.' : 'You must accept the Privacy Notice (GDPR) before continuing.');
+            return;
+        }
+
+        // ✅ NUEVO: exige marcar el check de declaraciones
+        if (!ackExtra) {
+            alert(tAck.mustAck);
             return;
         }
 
@@ -216,8 +261,16 @@ export default function App() {
             localStorage.setItem('certs', JSON.stringify(certs));
 
             const blob = await buildCertificate({
-                lang, name: participant.name, idDoc: participant.idDoc, company: participant.company, type,
-                certId: id, issueDate: issue.toLocaleDateString(lang), expiryDate: expiry.toLocaleDateString(lang), verifyUrl, logoUrl: CERT_LOGO_URL
+                lang,
+                name: participant.name,
+                idDoc: participant.idDoc,
+                company: participant.company,
+                type,
+                certId: id,
+                issueDate: issue.toLocaleDateString(lang),
+                expiryDate: expiry.toLocaleDateString(lang),
+                verifyUrl,
+                logoUrl: CERT_LOGO_URL
             });
 
             const url = URL.createObjectURL(blob);
@@ -246,8 +299,18 @@ export default function App() {
                     upsertRemote({
                         apiBase: cfg.registry.apiBase,
                         payload: {
-                            apiKey: cfg?.registry?.apiKey ?? '', dni: participant.idDoc, email: participant.email, name: participant.name,
-                            company: participant.company, site, type, certId: id, issueDate: issue.toISOString(), expiryDate: expiry.toISOString()
+                            apiKey: cfg?.registry?.apiKey ?? '',
+                            dni: participant.idDoc,
+                            email: participant.email,
+                            name: participant.name,
+                            company: participant.company,
+                            site,
+                            type,
+                            certId: id,
+                            issueDate: issue.toISOString(),
+                            expiryDate: expiry.toISOString(),
+                            // (Opcional) constancia de aceptación del check extra
+                            healthBadgeAck: true
                         }
                     }).catch((e) => console.error('upsertRemote error', e));
                 }
@@ -261,28 +324,26 @@ export default function App() {
     if (!cfg) return <div style={{ padding: 24 }}>Cargando configuración…</div>;
 
     const siteCfg = site ? cfg.sites?.[site] : null;
-
     const srcCfg = type ? (siteCfg?.videos?.[type]?.[lang] ?? cfg?.videos?.[type]?.[lang]) : '';
     const srcFbk = type ? fallbackVideos?.[type]?.[lang] : '';
     const videoUrl = srcCfg ?? srcFbk ?? '';
     const subTracks = tracks(type, lang, enabledLangs);
+
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
 
     // Política
     const policyCfg = siteCfg?.policy ?? cfg?.policy;
-    const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? c?.policy?.header ?? 'Política';
+    const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? cc?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
 
     // GDPR (para botón Abrir)
     const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
     const privacyTitle = sitePrivacyCfg?.title?.[lang] ?? sitePrivacyCfg?.title?.['es'] ??
         (lang === 'es' ? 'Aviso de privacidad (RGPD)' : 'Privacy Notice (GDPR)');
-
     const privacyUrlRaw =
         typeof sitePrivacyCfg?.url === 'string'
             ? sitePrivacyCfg.url
             : (sitePrivacyCfg?.url?.[lang] ?? sitePrivacyCfg?.url?.['es'] ?? '');
-
     const privacyUrlAbs = privacyUrlRaw ? abs(privacyUrlRaw) : '';
 
     if (route === 'verify') {
@@ -290,11 +351,11 @@ export default function App() {
             <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
                 <header style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
                     {brandLogo && <img src={brandLogo} alt={brand?.name ?? 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
-                    <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? c.title ?? 'Inducción'}</h1>
+                    <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? cc.title ?? 'Inducción'}</h1>
                     <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
                     <AdminBtn onClick={async () => { const ok = await ensureAdmin(); if (ok) setRoute('admin'); }} />
                 </header>
-                <Verify c={c} />
+                <Verify c={cc} />
             </div>
         );
     }
@@ -311,7 +372,7 @@ export default function App() {
         <div style={{ minHeight: '100vh', background: '#f1f5f9', padding: 24 }}>
             <header style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>
                 {brandLogo && <img src={brandLogo} alt={brand?.name ?? 'Logo'} style={{ height: 32, width: 'auto', borderRadius: 4, objectFit: 'contain' }} />}
-                <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? c.title ?? 'Inducción'}</h1>
+                <h1 style={{ fontSize: 24, fontWeight: 700 }}>{brand?.name ?? cc.title ?? 'Inducción'}</h1>
                 <LangPicker lang={lang} setLang={setLang} langs={enabledLangs} />
                 <SitePicker cfg={cfg} site={site} setSite={setSite} />
                 <AdminBtn onClick={async () => { const ok = await ensureAdmin(); if (ok) setRoute('admin'); }} />
@@ -329,17 +390,17 @@ export default function App() {
             {route === 'home' && (
                 <div style={{ display: 'grid', gap: 16, gridTemplateColumns: '1fr 1fr', marginTop: 24 }}>
                     <section className="card">
-                        <span className="badge">{c.visitBadge}</span>
-                        <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.visitTitle}</h3>
-                        <p style={{ color: '#475569' }}>{c.visitDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>{c.visitBtn}</button>
+                        <span className="badge">{cc.visitBadge}</span>
+                        <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{cc.visitTitle}</h3>
+                        <p style={{ color: '#475569' }}>{cc.visitDesc}</p>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('visita')}>{cc.visitBtn}</button>
                     </section>
 
                     <section className="card">
-                        <span className="badge">{c.contractorBadge}</span>
-                        <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{c.contractorTitle}</h3>
-                        <p style={{ color: '#475569' }}>{c.contractorDesc}</p>
-                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>{c.contractorBtn}</button>
+                        <span className="badge">{cc.contractorBadge}</span>
+                        <h3 style={{ fontSize: 20, fontWeight: 600, marginTop: 8 }}>{cc.contractorTitle}</h3>
+                        <p style={{ color: '#475569' }}>{cc.contractorDesc}</p>
+                        <button className="btn" style={{ marginTop: 12 }} onClick={() => startType('contrata')}>{cc.contractorBtn}</button>
                     </section>
                 </div>
             )}
@@ -385,26 +446,26 @@ export default function App() {
                                 ← {lang === 'es' ? 'Volver' : 'Back'}
                             </button>
                             <span />
-                            <span>{c.startVideo}</span>
+                            <span>{cc.startVideo}</span>
                         </div>
 
-                        <Field label={c.fields.name}>
+                        <Field label={cc.fields.name}>
                             <input name="name" defaultValue={participant?.name ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        <Field label={c.fields.id}>
+                        <Field label={cc.fields.id}>
                             <input name="idDoc" defaultValue={participant?.idDoc ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        <Field label={c.fields.company}>
+                        <Field label={cc.fields.company}>
                             <input name="company" defaultValue={participant?.company ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        <Field label={c.fields.email}>
+                        <Field label={cc.fields.email}>
                             <input type="email" name="email" defaultValue={participant?.email ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        {/* GDPR mínimo: botón “Abrir aviso” (si hay URL) + checkbox de aceptación */}
+                        {/* GDPR mínimo: botón “Abrir” (si hay URL) + checkbox de aceptación */}
                         <div style={{ display: 'grid', gap: 8 }}>
                             {privacyUrlAbs && (
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -413,22 +474,38 @@ export default function App() {
                                         className="btn btn-outline"
                                         onClick={() => window.open(privacyUrlAbs, '_blank', 'noopener,noreferrer')}
                                     >
-                                        {c.privacy?.openDoc ?? (lang === 'es' ? 'Abrir aviso' : 'Open notice')}
+                                        {cc.privacy?.openDoc ?? (lang === 'es' ? 'Abrir aviso' : 'Open notice')}
                                     </button>
                                     <span style={{ fontSize: 13, color: '#64748b' }}>
-                                        {c.privacy?.mustRead ?? (lang === 'es' ? 'Debes revisar el aviso completo.' : 'You must review the entire notice.')}
+                                        {cc.privacy?.mustRead ?? (lang === 'es' ? 'Debes revisar el aviso completo.' : 'You must review the entire notice.')}
                                     </span>
                                 </div>
                             )}
-
                             <label style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
                                 <input type="checkbox" checked={privacyOk} onChange={(e) => setPrivacyOk(e.target.checked)} />
                                 <span>
-                                    {c.privacy?.ackLabel ??
+                                    {cc.privacy?.ackLabel ??
                                         (lang === 'es' ? 'He leído y acepto el Aviso de privacidad (RGPD).' : 'I have read and accept the Privacy Notice (GDPR).')}
                                 </span>
                             </label>
                         </div>
+
+                        {/* ✅ NUEVO: Declaraciones extra (salud + tarjeta identificativa) */}
+                        <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                            <input
+                                type="checkbox"
+                                checked={ackExtra}
+                                onChange={(e) => setAckExtra(e.target.checked)}
+                                required
+                            />
+                            <span style={{ lineHeight: 1.35 }}>
+                                <div style={{ fontWeight: 600, marginBottom: 4 }}>{tAck.title}</div>
+                                <ul style={{ margin: 0, paddingLeft: '1.2em' }}>
+                                    <li>{tAck.lines[0]}</li>
+                                    <li>{tAck.lines[1]}</li>
+                                </ul>
+                            </span>
+                        </label>
 
                         {/* Pasarela de Política (Calidad y Seguridad Alimentaria) */}
                         {policyUrlAbs && (
@@ -437,19 +514,23 @@ export default function App() {
                                 url={policyUrlAbs}
                                 mustScroll={!!policyCfg?.mustScroll}
                                 mustAcknowledge={!!policyCfg?.mustAcknowledge}
-                                labels={c.policy}
+                                labels={cc.policy}
                                 isKiosk={kiosk}
                                 onStatusChange={(ok) => setPolicyOk(ok)}
                             />
                         )}
 
-                        {/* Botón bloqueado si no se han aceptado ambas (GDPR y Política) */}
+                        {/* Botón bloqueado si no se han aceptado GDPR, Política (si aplica) y el nuevo check */}
                         <button
                             className="btn"
                             type="submit"
-                            disabled={(policyUrlAbs && !policyOk) || (!privacyOk)}
+                            disabled={
+                                (policyUrlAbs && !policyOk) ||
+                                (!privacyOk) ||
+                                (!ackExtra) // ✅ NUEVO
+                            }
                         >
-                            {c.startVideo}
+                            {cc.startVideo}
                         </button>
                     </form>
                 </div>
@@ -457,8 +538,8 @@ export default function App() {
 
             {route === 'video' && type && (
                 <div className="card" style={{ marginTop: 24 }}>
-                    <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{c.videoTitle?.[type]}</h3>
-                    <p style={{ color: '#475569', marginBottom: 12 }}>{c.mustWatch}</p>
+                    <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{cc.videoTitle?.[type]}</h3>
+                    <p style={{ color: '#475569', marginBottom: 12 }}>{cc.mustWatch}</p>
                     <VideoGate src={videoUrl} tracks={subTracks} allowSeek={!!cfg.allowSeek} allowSubtitles={!!cfg.allowSubtitles} onDone={onVideoFinished} />
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
                         <button className="btn btn-outline" onClick={() => setRoute('form')}>← {lang === 'es' ? 'Atrás' : 'Back'}</button>
@@ -471,24 +552,24 @@ export default function App() {
 
             {route === 'quiz' && (
                 <div className="card" style={{ marginTop: 24 }}>
-                    <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{c.quizTitle}</h3>
+                    <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{cc.quizTitle}</h3>
                     <Quiz
-                        items={c.questions?.[type] ?? []}
-                        checkLabel={c.checkBtn}
-                        wrongLabel={c.wrong}
+                        items={cc.questions?.[type] ?? []}
+                        checkLabel={cc.checkBtn}
+                        wrongLabel={cc.wrong}
                         onPass={onQuizPassed}
                         onRetry={() => { setRoute('home'); setType(null); }}
-                        retryLabel={c.finishAndRetry ?? (lang === 'es' ? 'Finalizar y nuevo intento' : 'Finish & New attempt')}
+                        retryLabel={cc.finishAndRetry ?? (lang === 'es' ? 'Finalizar y nuevo intento' : 'Finish & New attempt')}
                     />
                 </div>
             )}
 
             {route === 'done' && (
                 <div className="card" style={{ marginTop: 24 }}>
-                    <p style={{ fontSize: 18 }}>{c.done}</p>
-                    <p style={{ color: '#475569' }}>{c.verifyHint}</p>
+                    <p style={{ fontSize: 18 }}>{cc.done}</p>
+                    <p style={{ color: '#475569' }}>{cc.verifyHint}</p>
                     <button className="btn" style={{ marginTop: 12 }} onClick={() => { setRoute('home'); setType(null); }}>
-                        {c.finish ?? (lang === 'es' ? 'Finalizar' : 'Finish')}
+                        {cc.finish ?? (lang === 'es' ? 'Finalizar' : 'Finish')}
                     </button>
                 </div>
             )}
@@ -533,5 +614,4 @@ function AdminBtn({ onClick }) {
             Admin
         </button>
     );
-
 }

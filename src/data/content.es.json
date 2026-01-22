@@ -53,10 +53,10 @@
                 "id": "v1",
                 "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
                 "options": [
-                    "Al punto de reunión",
+                    "Al punto de encuentro",
                     "Al exterior de la planta, en lugar que no presente riesgo."
                 ],
-                "correct": 1
+                "correct": 0
             },
             {
                 "id": "v2",
@@ -101,7 +101,7 @@
                 "id": "c01",
                 "text": "En caso de escuchar la alarma de evacuación se dirigirá…",
                 "options": [
-                    "Al punto de reunión.",
+                    "Al punto de encuentro",
                     "Al exterior de la planta, en un lugar que no presente riesgo"
                 ],
                 "correct": 0
