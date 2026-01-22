@@ -3,16 +3,35 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { logEvent } from '../lib/analytics';
 
-// ---------- Detección de iOS (incl. iPadOS con Safari) ----------
-const isIOS = (() => {
+
+// ---------- Detección móvil (sin navigator.platform) ----------
+const isMobileDevice = (() => {
+    // Entornos SSR/test
     if (typeof navigator === 'undefined') return false;
+
     const ua = navigator.userAgent || '';
-    const iOS = /iPad|iPhone|iPod/.test(ua);
-    const iPadOS13Plus = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
-    return iOS || iPadOS13Plus;
+    const ch = navigator.userAgentData; // Client Hints (Chromium)
+
+    // 1) Client Hints (si existen): fiable en Chromium
+    const byCH = !!(ch && typeof ch.mobile === 'boolean' && ch.mobile);
+
+    // 2) User‑Agent clásico: Android + iOS
+    const isAndroid = /Android/i.test(ua);
+    const isIOS = /iPhone|iPad|iPod/i.test(ua);
+
+    // 3) iPadOS 13+ (Safari “se hace pasar” por Mac): “Macintosh” + pantalla táctil
+    const isIPadOS13Plus = /Macintosh/i.test(ua) && (navigator.maxTouchPoints || 0) > 1;
+
+    // 4) Heurística de entrada “gruesa” (útil en tablets/phones)
+    const byPointer = typeof window !== 'undefined'
+        && typeof window.matchMedia === 'function'
+        && window.matchMedia('(pointer: coarse)').matches;
+
+    return Boolean(byCH || isAndroid || isIOS || isIPadOS13Plus || byPointer);
 })();
 
-// ---------- Helpers Fullscreen (cross‑browser / iOS) ----------
+
+// ---------- Fullscreen helpers ----------
 function enterFullscreen(el) {
     if (!el) return false;
     const req = el.requestFullscreen || el.webkitRequestFullscreen || el.msRequestFullscreen;
@@ -55,7 +74,8 @@ function ensureYouTubeAPI() {
 
 // ---------------------- Componente ----------------------
 export default function VideoGate({
-    src,
+    src,            // URL principal (YouTube o MP4)
+    mobileSrc,      // URL MP4 para móvil (forzado)
     tracks = [],
     allowSeek = false,
     allowSubtitles = true,
@@ -63,10 +83,13 @@ export default function VideoGate({
 }) {
     useEffect(() => { if (src) logEvent('video_start', { src }); }, [src]);
 
-    const youTubeId = getYouTubeId(src);
+    // Si es móvil y tenemos MP4 alternativo => usarlo
+    const effectiveSrc = (isMobileDevice && mobileSrc) ? mobileSrc : src;
+
+    const youTubeId = getYouTubeId(effectiveSrc);
     const isYouTube = !!youTubeId;
 
-    // ===================== YOUTUBE =====================
+    // ===================== YOUTUBE (solo en escritorio) =====================
     const ytPlayerRef = useRef(null);
     const ytBoxRef = useRef(null);
     const [ytReady, setYtReady] = useState(false);
@@ -82,8 +105,10 @@ export default function VideoGate({
     useEffect(() => { setYtEnded(false); setYtPlaying(false); }, [youTubeId]);
 
     useEffect(() => {
-        if (!isYouTube) return;
+        if (!isYouTube) return;         // Si no es YouTube, no inicializar API
+        if (isMobileDevice) return;     // En móvil no usamos YouTube nunca
         let disposed = false;
+
         (async () => {
             const YT = await ensureYouTubeAPI();
             if (disposed) return;
@@ -91,13 +116,12 @@ export default function VideoGate({
             ytPlayerRef.current = new YT.Player(playerDomId, {
                 videoId: youTubeId,
                 playerVars: {
-                    // ⚠️ En iOS mostramos controles nativos para disponer de su botón de pantalla completa
-                    controls: isIOS ? 1 : 0,
+                    controls: 0,               // UI propia (en escritorio)
                     modestbranding: 1,
                     rel: 0,
                     disablekb: 1,
                     fs: 1,
-                    playsinline: 1,  // evita auto-fullscreen en iOS si no queremos
+                    playsinline: 1,
                     iv_load_policy: 3,
                     hl: uiLang,
                     cc_lang_pref: uiLang,
@@ -107,7 +131,6 @@ export default function VideoGate({
                 events: {
                     onReady: () => {
                         setYtReady(true);
-                        // Asegurar permisos de fullscreen en el iframe
                         try {
                             const iframe = ytPlayerRef.current?.getIframe?.();
                             if (iframe) {
@@ -128,7 +151,7 @@ export default function VideoGate({
                             setYtPlaying(false);
                             setYtEnded(true);
                             onDone && onDone();
-                            logEvent('video_done', { src });
+                            logEvent('video_done', { src: effectiveSrc });
                         }
                     },
                 },
@@ -139,12 +162,11 @@ export default function VideoGate({
             disposed = true;
             try { ytPlayerRef.current?.destroy?.(); } catch { /* ignore */ }
         };
-    }, [isYouTube, youTubeId, playerDomId, allowSubtitles, uiLang, onDone, src]);
+    }, [isYouTube, youTubeId, playerDomId, allowSubtitles, uiLang, onDone, effectiveSrc]);
 
     const ytPlay = () => { try { ytPlayerRef.current?.playVideo(); } catch { } };
     const ytPause = () => { try { ytPlayerRef.current?.pauseVideo(); } catch { } };
     const ytToggle = () => (ytPlaying ? ytPause() : ytPlay());
-
     const ytToggleCaptions = () => {
         try {
             const on = !ytCaptions;
@@ -158,36 +180,18 @@ export default function VideoGate({
             }
         } catch { /* ignore */ }
     };
-
-    const openYouTubeExtern = () => {
-        if (!youTubeId) return;
-        // Abre en app/navegador de YouTube con fullscreen permitido
-        window.open(`https://www.youtube.com/watch?v=${youTubeId}&autoplay=1&fs=1`, '_blank', 'noopener,noreferrer');
-    };
-
     const ytFullscreen = () => {
-        // 1) Intentar fullscreen al propio iframe
         try {
             const iframe = ytPlayerRef.current?.getIframe?.();
-            if (iframe) {
-                iframe.setAttribute('allowfullscreen', 'true');
-                const allow = iframe.getAttribute('allow') || '';
-                if (!allow.includes('fullscreen')) {
-                    iframe.setAttribute('allow', `fullscreen; ${allow}`);
-                }
-                if (enterFullscreen(iframe)) return;
-            }
+            if (iframe && enterFullscreen(iframe)) return;
         } catch { /* ignore */ }
-        // 2) Fallback: contenedor
-        if (enterFullscreen(ytBoxRef.current)) return;
-        // 3) iOS: algunos WebKit no permiten fullscreen programático en iframe → abrir en YouTube
-        if (isIOS) openYouTubeExtern();
+        enterFullscreen(ytBoxRef.current);
     };
 
-    if (isYouTube) {
+    if (isYouTube && !isMobileDevice) {
+        // YouTube solo en ESCRITORIO
         return (
             <div style={{ display: 'grid', gap: 12 }}>
-                {/* Caja 16:9 */}
                 <div className="video-shell">
                     <div ref={ytBoxRef} className="iframe-box" style={{ position: 'relative' }}>
                         <div
@@ -195,8 +199,7 @@ export default function VideoGate({
                             aria-label="YouTube player"
                             style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
                         />
-                        {/* Overlay inicial (solo si ocultamos controles); en iOS usamos controles nativos */}
-                        {!isIOS && !ytPlaying && (
+                        {!ytPlaying && (
                             <div
                                 style={{
                                     position: 'absolute', inset: 0,
@@ -215,13 +218,11 @@ export default function VideoGate({
                                 </button>
                             </div>
                         )}
-                        {/* Escudo anti‑clics durante reproducción (sólo cuando ocultamos controles) */}
-                        {!isIOS && ytPlaying && (
+                        {ytPlaying && (
                             <div aria-hidden style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }} />
                         )}
                     </div>
 
-                    {/* Controles propios (seguimos mostrándolos; en iOS también tendrás los nativos) */}
                     <div className="video-controls" style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 8 }}>
                         <button className="btn btn-outline" onClick={ytToggle}>
                             {ytPlaying ? 'Pausa ⏸' : 'Play ▶'}
@@ -234,12 +235,6 @@ export default function VideoGate({
                         <button className="btn btn-outline" onClick={ytFullscreen} title="Pantalla completa">
                             ⛶ Pantalla completa
                         </button>
-                        {/* Fallback visible en iOS por claridad */}
-                        {isIOS && (
-                            <button className="btn btn-outline" onClick={openYouTubeExtern} title="Abrir en YouTube">
-                                ↗ Abrir en YouTube
-                            </button>
-                        )}
                     </div>
                 </div>
 
@@ -258,14 +253,14 @@ export default function VideoGate({
     const [watched, setWatched] = useState(0);
     const [ended, setEnded] = useState(false);
 
-    useEffect(() => { setWatched(0); setEnded(false); }, [src]);
+    useEffect(() => { setWatched(0); setEnded(false); }, [effectiveSrc]);
 
     useEffect(() => {
         const v = vidRef.current;
         if (!v) return;
         const onTime = () => setWatched((w) => Math.max(w, v.currentTime));
         const onSeek = () => { if (!allowSeek && v.currentTime > watched + 0.5) v.currentTime = Math.max(0, watched); };
-        const onEnded = () => { setEnded(true); onDone && onDone(); logEvent('video_done', { src }); };
+        const onEnded = () => { setEnded(true); onDone && onDone(); logEvent('video_done', { src: effectiveSrc }); };
         v.addEventListener('timeupdate', onTime);
         v.addEventListener('seeking', onSeek);
         v.addEventListener('ended', onEnded);
@@ -274,7 +269,7 @@ export default function VideoGate({
             v.removeEventListener('seeking', onSeek);
             v.removeEventListener('ended', onEnded);
         };
-    }, [allowSeek, watched, onDone, src]);
+    }, [allowSeek, watched, onDone, effectiveSrc]);
 
     // Ajuste de altura responsivo
     useEffect(() => {
@@ -295,15 +290,15 @@ export default function VideoGate({
         return () => { try { ro.disconnect(); } catch { } window.removeEventListener('resize', compute); };
     }, []);
 
-    const resolvedSrc = src && ((src.startsWith('http') || src.startsWith('data:'))
-        ? src
-        : (src.startsWith('/')
-            ? (import.meta.env.BASE_URL + src.replace(/^\/+/, ''))
-            : (import.meta.env.BASE_URL + src)));
+    const resolvedSrc = effectiveSrc && ((effectiveSrc.startsWith('http') || effectiveSrc.startsWith('data:'))
+        ? effectiveSrc
+        : (effectiveSrc.startsWith('/')
+            ? (import.meta.env.BASE_URL + effectiveSrc.replace(/^\/+/, ''))
+            : (import.meta.env.BASE_URL + effectiveSrc)));
 
     const mp4Fullscreen = () => {
         const v = vidRef.current; if (!v) return;
-        // iOS: primero intentamos fullscreen nativo del <video>, luego contenedor
+        // iOS: primero native video fullscreen; si no, el contenedor
         if (!enterFullscreen(v)) enterFullscreen(wrapRef.current);
     };
 

@@ -45,6 +45,11 @@ function abs(p) {
     return p.startsWith('/') ? import.meta.env.BASE_URL + p.replace(/^\/+/, '') : import.meta.env.BASE_URL + p;
 }
 
+// Pequeño helper para saber si una URL apunta a MP4
+function isMp4(u) {
+    return typeof u === 'string' && /\.mp4($|\?)/i.test(u);
+}
+
 export default function App() {
     const { cfg } = useConfig();
     const [lang, setLang] = useState('es');
@@ -60,7 +65,7 @@ export default function App() {
     const [policyOk, setPolicyOk] = useState(false);
     const [privacyOk, setPrivacyOk] = useState(false);
 
-    // ✅ NUEVO: aceptación de declaraciones (salud + tarjeta identificativa)
+    // ✅ Check extra (salud + tarjeta identificativa)
     const [ackExtra, setAckExtra] = useState(false);
 
     // Exención
@@ -91,7 +96,7 @@ export default function App() {
     // Contenidos base por idioma
     const c = useMemo(() => getContent(lang), [lang]);
 
-    // ✅ Parche UI ES: “Contrata” → “Colaborador” (sin cambiar claves ni 'type')
+    // ✅ Parche UI ES: “Contrata” → “Colaborador”
     const cc = useMemo(() => {
         if (lang !== 'es' || !c) return c;
         try {
@@ -215,14 +220,14 @@ export default function App() {
             return;
         }
 
-        // GDPR mínimo (solo aceptación)
+        // GDPR mínimo (aceptación)
         const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
         if ((sitePrivacyCfg?.mustAcknowledge ?? true) && !privacyOk) {
             alert(lang === 'es' ? 'Debes aceptar el Aviso de privacidad (RGPD) antes de continuar.' : 'You must accept the Privacy Notice (GDPR) before continuing.');
             return;
         }
 
-        // ✅ NUEVO: exige marcar el check de declaraciones
+        // Check adicional
         if (!ackExtra) {
             alert(tAck.mustAck);
             return;
@@ -309,7 +314,6 @@ export default function App() {
                             certId: id,
                             issueDate: issue.toISOString(),
                             expiryDate: expiry.toISOString(),
-                            // (Opcional) constancia de aceptación del check extra
                             healthBadgeAck: true
                         }
                     }).catch((e) => console.error('upsertRemote error', e));
@@ -326,9 +330,14 @@ export default function App() {
     const siteCfg = site ? cfg.sites?.[site] : null;
     const srcCfg = type ? (siteCfg?.videos?.[type]?.[lang] ?? cfg?.videos?.[type]?.[lang]) : '';
     const srcFbk = type ? fallbackVideos?.[type]?.[lang] : '';
-    const videoUrl = srcCfg ?? srcFbk ?? '';
-    const subTracks = tracks(type, lang, enabledLangs);
 
+    // URL de vídeo principal (desktop) + MP4 para móvil
+    const videoUrl = srcCfg ?? srcFbk ?? '';
+    const mobileVideoUrl = type
+        ? (isMp4(srcCfg) ? srcCfg : (srcFbk || ''))
+        : '';
+
+    const subTracks = tracks(type, lang, enabledLangs);
     const brandLogo = brand?.logo ? (brand.logo.startsWith('http') ? brand.logo : abs(brand.logo)) : null;
 
     // Política
@@ -336,7 +345,7 @@ export default function App() {
     const policyTitle = policyCfg?.title?.[lang] ?? policyCfg?.title?.['es'] ?? cc?.policy?.header ?? 'Política';
     const policyUrlAbs = policyCfg?.url ? abs(policyCfg.url) : '';
 
-    // GDPR (para botón Abrir)
+    // GDPR
     const sitePrivacyCfg = siteCfg?.privacy ?? cfg?.privacy;
     const privacyTitle = sitePrivacyCfg?.title?.[lang] ?? sitePrivacyCfg?.title?.['es'] ??
         (lang === 'es' ? 'Aviso de privacidad (RGPD)' : 'Privacy Notice (GDPR)');
@@ -465,7 +474,7 @@ export default function App() {
                             <input type="email" name="email" defaultValue={participant?.email ?? ''} className="border rounded" style={{ padding: '8px 12px', width: '100%' }} required />
                         </Field>
 
-                        {/* GDPR mínimo: botón “Abrir” (si hay URL) + checkbox de aceptación */}
+                        {/* GDPR */}
                         <div style={{ display: 'grid', gap: 8 }}>
                             {privacyUrlAbs && (
                                 <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
@@ -490,7 +499,7 @@ export default function App() {
                             </label>
                         </div>
 
-                        {/* ✅ NUEVO: Declaraciones extra (salud + tarjeta identificativa) */}
+                        {/* Check extra */}
                         <label style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
                             <input
                                 type="checkbox"
@@ -507,7 +516,7 @@ export default function App() {
                             </span>
                         </label>
 
-                        {/* Pasarela de Política (Calidad y Seguridad Alimentaria) */}
+                        {/* Política */}
                         {policyUrlAbs && (
                             <PolicyGate
                                 title={policyTitle}
@@ -520,14 +529,13 @@ export default function App() {
                             />
                         )}
 
-                        {/* Botón bloqueado si no se han aceptado GDPR, Política (si aplica) y el nuevo check */}
                         <button
                             className="btn"
                             type="submit"
                             disabled={
                                 (policyUrlAbs && !policyOk) ||
                                 (!privacyOk) ||
-                                (!ackExtra) // ✅ NUEVO
+                                (!ackExtra)
                             }
                         >
                             {cc.startVideo}
@@ -540,7 +548,17 @@ export default function App() {
                 <div className="card" style={{ marginTop: 24 }}>
                     <h3 style={{ fontSize: 20, fontWeight: 600, marginBottom: 8 }}>{cc.videoTitle?.[type]}</h3>
                     <p style={{ color: '#475569', marginBottom: 12 }}>{cc.mustWatch}</p>
-                    <VideoGate src={videoUrl} tracks={subTracks} allowSeek={!!cfg.allowSeek} allowSubtitles={!!cfg.allowSubtitles} onDone={onVideoFinished} />
+
+                    {/* 👇 Pasamos MP4 alternativo para móvil */}
+                    <VideoGate
+                        src={videoUrl}
+                        mobileSrc={mobileVideoUrl}
+                        tracks={subTracks}
+                        allowSeek={!!cfg.allowSeek}
+                        allowSubtitles={!!cfg.allowSubtitles}
+                        onDone={onVideoFinished}
+                    />
+
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 12 }}>
                         <button className="btn btn-outline" onClick={() => setRoute('form')}>← {lang === 'es' ? 'Atrás' : 'Back'}</button>
                         <span style={{ fontSize: 14, color: '#64748b' }}>
