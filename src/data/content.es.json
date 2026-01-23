@@ -185,7 +185,7 @@
                     "Siempre que se realicen trabajos en altura",
                     "Siempre que los trabajos en altura estén por encima de 2 m"
                 ],
-                "correct": 0
+                "correct": 1
             },
             {
                 "id": "c11",
